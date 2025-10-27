@@ -18,8 +18,6 @@ support respectively.
     - .NET Desktop Development
     - .NET Multi-platform App UI Development
     - ASP.NET and Web Development
-  - Under "Installation Details":
-    - 
 - GitHub Desktop (if not comfortable with CLI)
 
 ### Open the Solution
