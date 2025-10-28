@@ -1,27 +1,75 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Main</a>
-    </div>
-</div>
+﻿@using static MudBlazor.Icons
+@inject NavigationManager NavigationManager
+@implements IDisposable
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<MudButton OnClick="@(() => NavigateTo("/"))"
+           Variant="@(IsActive("/") ? Variant.Filled : Variant.Text)"
+           Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Dashboard"
+           IconColor="Color.Inherit"
+           Class="mx-1">
+    Overview
+</MudButton>
+<MudButton OnClick="@(() => NavigateTo("/crops"))"
+           Variant="@(IsActive("crops") ? Variant.Filled : Variant.Text)"
+           Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Grass"
+           IconColor="Color.Inherit"
+           Class="mx-1">
+    Crops
+</MudButton>
+<MudButton OnClick="@(() => NavigateTo("/analytics"))"
+           Variant="@(IsActive("analytics") ? Variant.Filled : Variant.Text)"
+           Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Analytics"
+           IconColor="Color.Inherit"
+           Class="mx-1">
+    Analytics
+</MudButton>
+<MudButton OnClick="@(() => NavigateTo("/settings"))"
+           Variant="@(IsActive("settings") ? Variant.Filled : Variant.Text)"
+           Color="Color.Primary"
+           StartIcon="@Icons.Material.Filled.Settings"
+           IconColor="Color.Inherit"
+           Class="mx-1">
+    Settings
+</MudButton>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-    </nav>
-</div>
+@code {
+    private void NavigateTo(string url)
+    {
+        NavigationManager.NavigateTo(url);
+    }
+
+    private bool IsActive(string page)
+    {
+        var currentUri = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+
+        if (page == "/")
+        {
+            return string.IsNullOrEmpty(currentUri) || currentUri == "/";
+        }
+
+        // This checks for all other pages
+        return !string.IsNullOrEmpty(currentUri) &&
+               currentUri.StartsWith(page, StringComparison.OrdinalIgnoreCase);
+    }
+
+    protected override void OnInitialized()
+    {
+        // This listens for when the URL changes so it can re-draw the buttons
+        NavigationManager.LocationChanged += HandleLocationChanged;
+    }
+
+    private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        // This tells the component to update its display
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        // This cleans up the listener
+        NavigationManager.LocationChanged -= HandleLocationChanged;
+    }
+}

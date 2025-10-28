@@ -1,0 +1,140 @@
+﻿@page "/"
+@using static MudBlazor.Icons
+
+@* --- CROP STATS --- *@
+<MudGrid Spacing="4" Class="mb-6">
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Outlined="true" Class="pa-4 d-flex justify-space-between align-center" Style="border-radius: 8px;">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.body2" TextColor="TextColor.Secondary">Total Crops</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight: 600;">-</MudText>
+            </MudStack>
+            <MudIcon Icon="@Icons.Material.Filled.Park" Color="Color.Success" Size="Size.Large" />
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Outlined="true" Class="pa-4 d-flex justify-space-between align-center" Style="border-radius: 8px;">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.body2" TextColor="TextColor.Secondary">Healthy Crops</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight: 600;">-</MudText>
+            </MudStack>
+            <MudIcon Icon="@Icons.Material.Filled.Favorite" Color="Color.Success" Size="Size.Large" />
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Outlined="true" Class="pa-4 d-flex justify-space-between align-center" Style="border-radius: 8px;">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.body2" TextColor="TextColor.Secondary">Average Health</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight: 600;">-%</MudText>
+            </MudStack>
+            <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Color="Color.Success" Size="Size.Large" />
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Elevation="0" Outlined="true" Class="pa-4 d-flex justify-space-between align-center" Style="border-radius: 8px;">
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.body2" TextColor="TextColor.Secondary">Active Alerts</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight: 600;">-</MudText>
+            </MudStack>
+            <MudIcon Icon="@Icons.Material.Filled.Report" Color="Color.Warning" Size="Size.Large" />
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@* --- ENVIRONMENTAL METRICS (3x3 Grid) --- *@
+<MudPaper Elevation="0" Outlined="true" Class="pa-4" Style="border-radius: 8px;">
+    <MudText Typo="Typo.h6" Class="mb-4">Environmental Metrics</MudText>
+    <MudGrid Spacing="4" Justify="Justify.Center">
+
+        @* Row 1 *@
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-4" Style="border-radius: 12px; border-color: #A5D6A7; background-color: #E8F5E9;">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.InvertColors" Color="Color.Primary" Size="Size.Large" />
+                    <MudStack Spacing="0">
+                        <MudText TextColor="TextColor.Secondary">Solution pH</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 600;">-</MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-4" Style="border-radius: 12px; border-color: #A5D6A7; background-color: #E8F5E9;">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.Thermostat" Color="Color.Warning" Size="Size.Large" />
+                    <MudStack Spacing="0">
+                        <MudText TextColor="TextColor.Secondary">Temperature</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 600;">- °C</MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-4" Style="border-radius: 12px; border-color: #A5D6A7; background-color: #E8F5E9;">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.Water" Color="Color.Info" Size="Size.Large" />
+                    <MudStack Spacing="0">
+                        <MudText TextColor="TextColor.Secondary">Water Level</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 600;">- %</MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        @* Row 2 *@
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-4" Style="border-radius: 12px; border-color: #A5D6A7; background-color: #E8F5E9;">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.BubbleChart" Color="Color.Info" Size="Size.Large" />
+                    <MudStack Spacing="0">
+                        <MudText TextColor="TextColor.Secondary">Dissolved O₂</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 600;">- mg/L</MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-4" Style="border-radius: 12px; border-color: #A5D6A7; background-color: #E8F5E9;">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.WbSunny" Color="Color.Warning" Size="Size.Large" />
+                    <MudStack Spacing="0">
+                        <MudText TextColor="TextColor.Secondary">Light Control</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 600;">-</MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-4" Style="border-radius: 12px; border-color: #A5D6A7; background-color: #E8F5E9;">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.Bolt" Color="Color.Success" Size="Size.Large" />
+                    <MudStack Spacing="0">
+                        <MudText TextColor="TextColor.Secondary">EC/TDS</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 600;">- mS/cm</MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        @* Row 3 *@
+        <MudItem xs="12" sm="6" md="4">
+            <MudPaper Elevation="0" Outlined="true" Class="pa-4" Style="border-radius: 12px; border-color: #A5D6A7; background-color: #E8F5E9;">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.HelpOutline" Color="Color.Default" Size="Size.Large" />
+                    <MudStack Spacing="0">
+                        <MudText TextColor="TextColor.Secondary">Metric 7</MudText>
+                        <MudText Typo="Typo.h6" Style="font-weight: 600;">-</MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+    </MudGrid>
+</MudPaper>
+
+@code {
+}

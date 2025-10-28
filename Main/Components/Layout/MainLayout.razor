@@ -1,17 +1,66 @@
 ﻿@inherits LayoutComponentBase
+@using static MudBlazor.Icons
 
-<div class="page">
-    <div class="sidebar">
+<MudThemeProvider Theme="_myCustomTheme"/>
+<MudDialogProvider/>
+<MudSnackbarProvider/>
+
+<MudLayout>
+    <MudAppBar Elevation="1" Color="Color.Surface" Fixed="false" Class="pa-4" Style="background-color: #f7f7f8 !important;">
+        
+        @* SECTION 1: Logo and Title *@
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+            <MudPaper Width="40px" Height="40px" Class="d-flex align-center justify-center" Style="background-color: var(--mud-palette-success-darken); border-radius: 8px;">
+                <MudIcon Icon="@Icons.Material.Filled.Opacity" Style="color: white;" />
+            </MudPaper>
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h6" Style="font-weight: 600; color: black;">Demeter</MudText>
+                <MudText Typo="Typo.body2" Style="color: black !important;">Automated Hydroponic System</MudText>
+            </MudStack>
+        </MudStack>
+
+        <MudSpacer />
+
+        @* SECTION 2: Nav Buttons *@
         <NavMenu />
-    </div>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+        <MudSpacer />
 
-        <article class="content px-4">
+        @* SECTION 3: Status Chip and Badge *@
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4">
+            <MudChip T="object" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Analytics" Color="Color.Success">System Active</MudChip>
+            <MudBadge Content="0" Color="Color.Error" Overlap="true" Bordered="true"> @* Alerts count is hardcoded to 0 *@
+                <MudIcon Icon="@Icons.Material.Filled.Notifications" Color="Color.Dark" />
+            </MudBadge>
+        </MudStack>
+    </MudAppBar>
+
+    <MudMainContent>
+        @* This container styles all your pages *@
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-6" Style="background-color: #f7f7f8; min-height: 100vh;">
             @Body
-        </article>
-    </main>
-</div>
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private MudTheme _myCustomTheme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#28a745",
+            Secondary = "#fd7e14",
+            Surface = "#f7f7f8",
+            Background = "#f7f7f8", // Main page background
+            Success = "#28a745" // For the chip and icon
+        },
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#28a745",
+            Secondary = "#fd7e14",
+            Surface = "#424242",
+            Background = "#121212",
+            Success = "#28a745"
+        }
+    };
+}
