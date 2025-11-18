@@ -1,42 +1,180 @@
 ﻿@inherits LayoutComponentBase
 @using static MudBlazor.Icons
 
-<MudThemeProvider Theme="_myCustomTheme"/>
-<MudDialogProvider/>
-<MudSnackbarProvider/>
+<style>
+    .top-bar {
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
+        border-bottom: 2px solid rgba(17, 153, 142, 0.1) !important;
+        backdrop-filter: blur(10px);
+    }
+
+    .logo-container {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border-radius: 10px;
+        padding: 8px;
+        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.25);
+        transition: transform 0.3s ease;
+    }
+
+        .logo-container:hover {
+            transform: scale(1.05);
+        }
+
+    .app-title {
+        font-weight: 700 !important;
+        color: #2d3748 !important;
+        font-size: 1.4rem !important;
+        letter-spacing: 0.5px;
+    }
+
+    .app-subtitle {
+        color: #718096 !important;
+        font-size: 0.85rem !important;
+        font-weight: 500 !important;
+    }
+
+    .menu-button {
+        background: rgba(17, 153, 142, 0.08) !important;
+        border-radius: 10px !important;
+        transition: all 0.3s ease !important;
+    }
+
+        .menu-button:hover {
+            background: rgba(17, 153, 142, 0.15) !important;
+            transform: rotate(90deg);
+        }
+
+    .status-badge {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        padding: 0.5rem 1.2rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .status-indicator {
+        width: 8px;
+        height: 8px;
+        background: white;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    .user-section {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.5rem 1rem;
+        background: rgba(17, 153, 142, 0.05);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+        .user-section:hover {
+            background: rgba(17, 153, 142, 0.1);
+        }
+
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .notification-button {
+        position: relative;
+        background: rgba(17, 153, 142, 0.08) !important;
+        border-radius: 10px !important;
+    }
+
+    .notification-badge {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        background: #ef4444;
+        border-radius: 50%;
+        border: 2px solid white;
+    }
+
+    .user-info {
+        display: none;
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    @@media (min-width: 768px) {
+        .user-info {
+            display: block;
+        }
+    }
+</style>
+
+<MudThemeProvider Theme="_myCustomTheme" />
+<MudDialogProvider />
+<MudSnackbarProvider />
 
 <MudLayout>
-    <MudAppBar Elevation="1" Color="Color.Surface" Fixed="false" Class="pa-4" Style="background-color: #f7f7f8 !important;">
-        
-        @* SECTION 1: Logo and Title *@
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
-            <MudPaper Width="40px" Height="40px" Class="d-flex align-center justify-center" Style="background-color: var(--mud-palette-success-darken); border-radius: 8px;">
-                <MudIcon Icon="@Icons.Material.Filled.Opacity" Style="color: white;" />
-            </MudPaper>
+    <MudAppBar Elevation="2" Fixed="true" Class="top-bar pa-3">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Success"
+                       Edge="Edge.Start"
+                       Class="menu-button"
+                       @onclick="ToggleDrawer" />
+
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="ml-4">
+            <div class="logo-container">
+                <MudIcon Icon="@Icons.Material.Filled.Opacity" Style="color: white; font-size: 1.5rem;" />
+            </div>
             <MudStack Spacing="0">
-                <MudText Typo="Typo.h6" Style="font-weight: 600; color: black;">Demeter</MudText>
-                <MudText Typo="Typo.body2" Style="color: black !important;">Automated Hydroponic System</MudText>
+                <MudText Class="app-title">Demeter</MudText>
+                <MudText Class="app-subtitle">Autonomous Hydroponics System</MudText>
             </MudStack>
         </MudStack>
 
         <MudSpacer />
 
-        @* SECTION 2: Nav Buttons *@
-        <NavMenu />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+            <div class="status-badge">
+                <div class="status-indicator"></div>
+                <span>System Active</span>
+            </div>
 
-        <MudSpacer />
-
-        @* SECTION 3: Status Chip and Badge *@
-        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="4">
-            <MudChip T="object" Variant="Variant.Outlined" Icon="@Icons.Material.Filled.Analytics" Color="Color.Success">System Active</MudChip>
-            <MudBadge Content="0" Color="Color.Error" Overlap="true" Bordered="true"> @* Alerts count is hardcoded to 0 *@
-                <MudIcon Icon="@Icons.Material.Filled.Notifications" Color="Color.Dark" />
-            </MudBadge>
+            <MudIconButton Icon="@Icons.Material.Filled.Notifications"
+                           Color="Color.Default"
+                           Class="notification-button">
+                <div class="notification-badge"></div>
+            </MudIconButton>
         </MudStack>
     </MudAppBar>
 
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1">
+        <NavMenu />
+    </MudDrawer>
+
     <MudMainContent>
-        @* This container styles all your pages *@
+        <MudToolBar />
         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-6" Style="background-color: #f7f7f8; min-height: 100vh;">
             @Body
         </MudContainer>
@@ -44,6 +182,13 @@
 </MudLayout>
 
 @code {
+    private bool _drawerOpen = true;
+
+    private void ToggleDrawer()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
     private MudTheme _myCustomTheme = new MudTheme()
     {
         PaletteLight = new PaletteLight()
@@ -51,8 +196,8 @@
             Primary = "#28a745",
             Secondary = "#fd7e14",
             Surface = "#f7f7f8",
-            Background = "#f7f7f8", // Main page background
-            Success = "#28a745" // For the chip and icon
+            Background = "#f7f7f8",
+            Success = "#28a745"
         },
         PaletteDark = new PaletteDark()
         {

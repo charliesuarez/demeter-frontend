@@ -2,38 +2,156 @@
 @inject NavigationManager NavigationManager
 @implements IDisposable
 
-<MudButton OnClick="@(() => NavigateTo("/"))"
-           Variant="@(IsActive("/") ? Variant.Filled : Variant.Text)"
-           Color="Color.Primary"
-           StartIcon="@Icons.Material.Filled.Dashboard"
-           IconColor="Color.Inherit"
-           Class="mx-1">
-    Overview
-</MudButton>
-<MudButton OnClick="@(() => NavigateTo("/crops"))"
-           Variant="@(IsActive("crops") ? Variant.Filled : Variant.Text)"
-           Color="Color.Primary"
-           StartIcon="@Icons.Material.Filled.Grass"
-           IconColor="Color.Inherit"
-           Class="mx-1">
-    Crops
-</MudButton>
-<MudButton OnClick="@(() => NavigateTo("/analytics"))"
-           Variant="@(IsActive("analytics") ? Variant.Filled : Variant.Text)"
-           Color="Color.Primary"
-           StartIcon="@Icons.Material.Filled.Analytics"
-           IconColor="Color.Inherit"
-           Class="mx-1">
-    Analytics
-</MudButton>
-<MudButton OnClick="@(() => NavigateTo("/settings"))"
-           Variant="@(IsActive("settings") ? Variant.Filled : Variant.Text)"
-           Color="Color.Primary"
-           StartIcon="@Icons.Material.Filled.Settings"
-           IconColor="Color.Inherit"
-           Class="mx-1">
-    Settings
-</MudButton>
+<style>
+    .nav-container {
+        background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+        height: 100%;
+        padding: 1.5rem 1rem;
+        padding-top: 5rem;
+        border-right: 1px solid #e0e0e0;
+    }
+
+    .nav-logo {
+        padding: 1rem;
+        margin-bottom: 2rem;
+        text-align: center;
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
+    }
+
+    .nav-logo-icon {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .nav-logo-title {
+        color: white;
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: 0.5px;
+    }
+
+    .nav-logo-subtitle {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.75rem;
+        margin: 0;
+        font-weight: 400;
+    }
+
+    .nav-section-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #718096;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        padding: 0.5rem 1rem;
+        margin: 1.5rem 0 0.5rem 0;
+    }
+
+    .nav-button {
+        justify-content: flex-start !important;
+        text-transform: none !important;
+        font-size: 1rem !important;
+        padding: 0.85rem 1.2rem !important;
+        margin-bottom: 0.5rem !important;
+        border-radius: 10px !important;
+        transition: all 0.3s ease !important;
+        font-weight: 500 !important;
+    }
+
+        .nav-button:not(.nav-button-active) {
+            color: #4a5568 !important;
+            background: transparent !important;
+        }
+
+            .nav-button:not(.nav-button-active):hover {
+                background: rgba(17, 153, 142, 0.08) !important;
+                transform: translateX(4px);
+            }
+
+    .nav-button-active {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3) !important;
+        font-weight: 600 !important;
+    }
+
+    .nav-button-icon {
+        font-size: 1.5rem !important;
+    }
+
+    .nav-footer {
+        position: absolute;
+        bottom: 1.5rem;
+        left: 1rem;
+        right: 1rem;
+        padding: 1rem;
+        background: rgba(17, 153, 142, 0.05);
+        border-radius: 10px;
+        text-align: center;
+        font-size: 0.75rem;
+        color: #718096;
+    }
+</style>
+
+<div class="nav-container">
+    <div class="nav-logo">
+        <div class="nav-logo-icon">🌱</div>
+        <h1 class="nav-logo-title">Demeter</h1>
+        <p class="nav-logo-subtitle">Hydroponic System</p>
+    </div>
+
+    <div class="nav-section-title">Main Menu</div>
+
+    <MudStack Spacing="0">
+        <MudButton OnClick="@(() => NavigateTo("/"))"
+                   Variant="Variant.Filled"
+                   Color="@(IsActive("/") ? Color.Success : Color.Default)"
+                   StartIcon="@Icons.Material.Filled.Dashboard"
+                   Class="@GetButtonClass("/")"
+                   FullWidth="true">
+            Overview
+        </MudButton>
+
+        <MudButton OnClick="@(() => NavigateTo("/crops"))"
+                   Variant="Variant.Filled"
+                   Color="@(IsActive("crops") ? Color.Success : Color.Default)"
+                   StartIcon="@Icons.Material.Filled.Grass"
+                   Class="@GetButtonClass("crops")"
+                   FullWidth="true">
+            Crops
+        </MudButton>
+
+        <MudButton OnClick="@(() => NavigateTo("/analytics"))"
+                   Variant="Variant.Filled"
+                   Color="@(IsActive("analytics") ? Color.Success : Color.Default)"
+                   StartIcon="@Icons.Material.Filled.Analytics"
+                   Class="@GetButtonClass("analytics")"
+                   FullWidth="true">
+            Analytics
+        </MudButton>
+    </MudStack>
+
+    <div class="nav-section-title">System</div>
+
+    <MudStack Spacing="0">
+        <MudButton OnClick="@(() => NavigateTo("/settings"))"
+                   Variant="Variant.Filled"
+                   Color="@(IsActive("settings") ? Color.Success : Color.Default)"
+                   StartIcon="@Icons.Material.Filled.Settings"
+                   Class="@GetButtonClass("settings")"
+                   FullWidth="true">
+            Settings
+        </MudButton>
+    </MudStack>
+
+    <div class="nav-footer">
+        <MudIcon Icon="@Icons.Material.Filled.Spa" Size="Size.Small" Style="vertical-align: middle;" />
+        <div style="margin-top: 0.25rem;">v1.0.0</div>
+    </div>
+</div>
 
 @code {
     private void NavigateTo(string url)
@@ -44,32 +162,31 @@
     private bool IsActive(string page)
     {
         var currentUri = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
-
         if (page == "/")
         {
             return string.IsNullOrEmpty(currentUri) || currentUri == "/";
         }
-
-        // This checks for all other pages
         return !string.IsNullOrEmpty(currentUri) &&
                currentUri.StartsWith(page, StringComparison.OrdinalIgnoreCase);
     }
 
+    private string GetButtonClass(string page)
+    {
+        return IsActive(page) ? "nav-button nav-button-active" : "nav-button";
+    }
+
     protected override void OnInitialized()
     {
-        // This listens for when the URL changes so it can re-draw the buttons
         NavigationManager.LocationChanged += HandleLocationChanged;
     }
 
     private void HandleLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        // This tells the component to update its display
         StateHasChanged();
     }
 
     public void Dispose()
     {
-        // This cleans up the listener
         NavigationManager.LocationChanged -= HandleLocationChanged;
     }
 }

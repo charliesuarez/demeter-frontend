@@ -86,3 +86,30 @@ h1:focus {
         padding-left: env(safe-area-inset-left);
     }
 }
+
+
+/* --- Custom Demeter Button Styles --- */
+
+/* Primary Button (Green) */
+.btn-demeter-primary {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+    color: #ffffff !important;
+}
+
+    .btn-demeter-primary:hover {
+        background-color: #218838 !important; /* A slightly darker green for hover */
+        border-color: #1e7e34 !important;
+    }
+
+/* Secondary Button (Orange) */
+.btn-demeter-secondary {
+    background-color: #fd7e14 !important;
+    border-color: #fd7e14 !important;
+    color: #ffffff !important;
+}
+
+    .btn-demeter-secondary:hover {
+        background-color: #e67312 !important; /* A slightly darker orange for hover */
+        border-color: #d96c10 !important;
+    }
