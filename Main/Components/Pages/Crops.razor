@@ -19,41 +19,65 @@
         cursor: pointer;
     }
 
-        .slot-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
+    .slot-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
 
-        .slot-card.selected {
-            border: 2px solid #11998e !important;
-            background-color: #f0fdf4;
-        }
+    .slot-card.selected {
+        border: 2px solid #11998e !important;
+        background-color: #f0fdf4;
+    }
 
     .lettuce-option {
         transition: all 0.2s ease;
     }
 
-        .lettuce-option:hover {
-            background-color: #f0fdf4;
-        }
+    .lettuce-option:hover {
+        background-color: #f0fdf4;
+    }
 
     .crop-card {
         transition: all 0.3s ease;
     }
 
-        .crop-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-        }
+    .crop-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+    }
 
     .stat-card {
         transition: all 0.2s ease;
     }
 
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(17, 153, 142, 0.2);
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.2);
+    }
+
+    @@media (max-width: 600px) {
+        .crops-header {
+            padding: 1rem;
         }
+
+        .crops-header h3 {
+            font-size: 1.3rem;
+        }
+
+        .stat-card .mud-typography-h3 {
+            font-size: 1.5rem !important;
+        }
+
+        .stat-card .mud-typography-body2 {
+            font-size: 0.65rem !important;
+        }
+
+        .stat-card .mud-icon-root {
+            font-size: 1rem !important;
+            width: 1rem !important;
+            height: 1rem !important;
+        }
+    }
 </style>
 
 <div class="crops-header">
@@ -68,7 +92,7 @@
 <MudGrid Justify="Justify.Center" Class="mb-6">
     <MudItem xs="12" sm="10" md="12" lg="10">
         <MudGrid Spacing="4">
-            <MudItem xs="12" sm="6" md="4">
+            <MudItem xs="4" sm="6" md="4">
                 <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px; border: 2px solid #e5e7eb;">
                     <MudStack Spacing="1">
                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -79,7 +103,7 @@
                     </MudStack>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="6" md="4">
+            <MudItem xs="4" sm="6" md="4">
                 <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px; border: 2px solid #e5e7eb;">
                     <MudStack Spacing="1">
                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -90,7 +114,7 @@
                     </MudStack>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="6" md="4">
+            <MudItem xs="4" sm="6" md="4">
                 <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px; border: 2px solid #e5e7eb;">
                     <MudStack Spacing="1">
                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -116,7 +140,7 @@
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.Spa" Style="color: #11998e;" Size="Size.Large" />
                         <MudStack Spacing="0">
-                            <MudText Typo="Typo.h5" Style="font-weight: 600; color: #1f2937;">Start Your First Batch</MudText>
+                            <MudText Typo="Typo.h5" Style="font-weight: 600; color: #1f2937;">Start Your Batch</MudText>
                             <MudText Typo="Typo.body2" Style="color: #6b7280;">Select lettuce types for each slot. You don't need to use all four slots.</MudText>
                         </MudStack>
                     </MudStack>
@@ -158,7 +182,7 @@
                     </MudGrid>
 
                     @* Action Buttons *@
-                    <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mt-2">
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mt-2" Style="flex-wrap: wrap;">
                         <MudButton Variant="Variant.Text"
                                    Color="Color.Default"
                                    OnClick="ClearBatchForm"
@@ -186,9 +210,9 @@
     <MudGrid Spacing="4" Class="mt-4">
         @foreach (var crop in VisibleCrops)
         {
-            <MudItem xs="12" sm="6" md="4" lg="3">
+            <MudItem xs="6" sm="6" md="4" lg="3">
                 <MudCard Class="crop-card" Style="border-radius: 12px; overflow: hidden; height: 100%;">
-                    <MudCardMedia Image="@GetImagePath(crop.Type)" Height="200" Style="object-fit: cover;" />
+                    <MudCardMedia Image="@GetImagePath(crop.Type)" Height="160" Style="object-fit: cover;" />
                     <MudCardContent>
                         <MudStack Spacing="2">
                             <MudText Typo="Typo.h6" Style="font-weight: 600; color: #1f2937;">@crop.Name</MudText>
