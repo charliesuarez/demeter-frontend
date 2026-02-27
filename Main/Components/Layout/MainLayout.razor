@@ -149,14 +149,14 @@
             </div>
             <MudStack Spacing="0">
                 <MudText Class="app-title">Demeter</MudText>
-                <MudText Class="app-subtitle">Autonomous Hydroponics System</MudText>
+                <MudText Class="app-subtitle d-none d-sm-block">Autonomous Hydroponics System</MudText>
             </MudStack>
         </MudStack>
 
         <MudSpacer />
 
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
-            <div class="status-badge">
+            <div class="status-badge d-none d-sm-flex">
                 <div class="status-indicator"></div>
                 <span>System Active</span>
             </div>
@@ -175,7 +175,7 @@
 
     <MudMainContent>
         <MudToolBar />
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-6" Style="background-color: #f7f7f8; min-height: 100vh;">
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pa-2 pa-md-6" Style="background-color: #f7f7f8; min-height: 100vh;">
             @Body
         </MudContainer>
     </MudMainContent>
