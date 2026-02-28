@@ -1,34 +1,51 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace Main.Bluetooth;
 
-namespace Main.Bluetooth;
-
+/// <summary>
+/// Interface for BLE communication with ESP32.
+/// </summary>
 public interface IBluetoothService : IDisposable
 {
-    BleConnectionState ConnectionState { get; }
-
+    // State
     bool IsConnected { get; }
-    string? ConnectedDeviceId { get; }
     string? ConnectedDeviceName { get; }
 
-    event Action<BleDeviceInfo>? OnDeviceDiscovered;
-    event Action<SensorDataPacket>? OnSensorDataReceived;
-    event Action<BleConnectionState>? OnConnectionStateChanged;
-    event Action<string>? OnError;
+    // Events
+    event Action<BleDevice>?  DeviceDiscovered;
+    event Action<SensorData>? SensorDataReceived;
+    event Action<bool>?       ConnectionChanged;
+    event Action<string>?     ErrorOccurred;
 
-    public Task InitializeAsync();
-    public Task StartScanAsync(TimeSpan? timeout = null);
-    public Task StopScanAsync();
-    public Task ConnectAsync(Guid deviceId, CancellationToken cancellationToken = default);
-    public Task DisconnectAsync(CommandType commandType, object? parameters = null);
+    // Connection
+    Task InitializeAsync();
+    Task StartScanAsync(int timeoutSeconds = 10);
+    Task StopScanAsync();
+    Task ConnectAsync(Guid deviceId);
+    Task ConnectByAddressAsync(string macAddress);
+    Task DisconnectAsync();
 
-    public Task<bool> SendCommandAsync();
-    public Task<bool> SetWaterPumpAsyncOn();
-    public Task<bool> SetAirPumpAsyncOn();
-    public Task<bool> DoseNutrientAsync();
-    public Task<bool> RequestStatusAsync();
+    // Commands
+    Task<bool> SetWaterPumpAsync(bool on);
+    Task<bool> SetAirPumpAsync(bool on);
+    Task<bool> DoseNutrientsAsync(int durationMs);
+}
+
+/// <summary>
+/// Discovered BLE device info.
+/// </summary>
+public record BleDevice(Guid Id, string Name, int Rssi);
+
+/// <summary>
+/// Sensor data received from ESP32.
+/// </summary>
+public record SensorData
+{
+    public double? Ph { get; init; }
+    public double? WaterTemp { get; init; }
+    public double? AirTemp { get; init; }
+    public double? Humidity { get; init; }
+    public double? Tds { get; init; }
+    public double? WaterLevel { get; init; }
+    public double? Light { get; init; }
+    public double? DissolvedOxygen { get; init; }
+    public DateTime Timestamp { get; init; } = DateTime.Now;
 }
