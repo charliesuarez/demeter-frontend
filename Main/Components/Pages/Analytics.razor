@@ -34,16 +34,16 @@
         background-color: white;
     }
 
-        .custom-select:focus {
-            border-color: #667eea;
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
+    .custom-select:focus {
+        border-color: #667eea;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
 
-        .custom-select:disabled {
-            background-color: #f5f5f5;
-            cursor: not-allowed;
-        }
+    .custom-select:disabled {
+        background-color: #f5f5f5;
+        cursor: not-allowed;
+    }
 
     .empty-state {
         text-align: center;
@@ -87,24 +87,45 @@
         font-weight: 500;
     }
 
-    /* Custom Tab Styling */
-    .mud-tabs .mud-tab {
-        font-weight: 600;
-        font-size: 1rem;
-        text-transform: none;
-        padding: 1rem 2rem;
-    }
-
-    .mud-tabs .mud-tab-active {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
-        color: white !important;
-        border-radius: 8px 8px 0 0;
-    }
-
     .mud-tabs-toolbar {
-        background-color: white;
-        border-radius: 8px 8px 0 0;
+        background-color: #f0fdf4 !important;
+        border-radius: 12px !important;
+        padding: 6px !important;
+        width: fit-content !important;
+        border: 1px solid #d1fae5 !important;
+        margin-bottom: 1.5rem !important;
     }
+
+    .mud-tab {
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        text-transform: none !important;
+        padding: 1rem 2rem !important;
+        border-radius: 10px !important;
+        color: #6b7280 !important;
+        background: transparent !important;
+        min-width: unset !important;
+        margin: 0 5px !important;
+    }
+
+    .mud-tab-active {
+        background: white !important;
+        color: #11998e !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
+    }
+
+    .mud-tab-slider {
+        display: none !important;
+        height: 0 !important;
+    }
+
+    .mud-tabs-header {
+        background: transparent !important;
+    }
+
+        .mud-tabs-header .mud-tabs-scroll-button {
+            display: none !important;
+        }
 
     .mud-tab-panel {
         padding: 0 !important;
@@ -123,6 +144,20 @@
         align-items: center;
         gap: 0.5rem;
     }
+
+    @@media (max-width: 600px) {
+        .analytics-header {
+            padding: 1rem;
+        }
+
+        .analytics-header h3 {
+            font-size: 1.3rem;
+        }
+
+        .mud-chart {
+            overflow-x: auto;
+        }
+    }
 </style>
 
 <div class="analytics-header">
@@ -134,8 +169,8 @@
 </div>
 
 <div class="filter-card">
-    <div class="row">
-        <div class="col-md-6">
+    <MudGrid Spacing="3">
+        <MudItem xs="12" md="6">
             <label class="filter-label">
                 <MudIcon Icon="@Icons.Material.Filled.Layers" Size="Size.Small" Style="vertical-align: middle; margin-right: 0.3rem;" />
                 Select Batch
@@ -147,8 +182,8 @@
                     <option value="@batch.Id">@batch.Name</option>
                 }
             </select>
-        </div>
-        <div class="col-md-6">
+        </MudItem>
+        <MudItem xs="12" md="6">
             <label class="filter-label">
                 <MudIcon Icon="@Icons.Material.Filled.Grass" Size="Size.Small" Style="vertical-align: middle; margin-right: 0.3rem;" />
                 Crops in Selected Batch
@@ -169,8 +204,8 @@
                     Select a batch to view crops
                 </div>
             }
-        </div>
-    </div>
+        </MudItem>
+    </MudGrid>
 </div>
 
 @if (dataLoaded)
@@ -182,7 +217,7 @@
         </div>
 
         <MudTabs Elevation="3" Rounded="true" ApplyEffectsToChildren="true"
-                 PanelClass="pa-4" Color="Color.Success" Class="mb-4">
+                 PanelClass="pa-4" Class="mb-4">
 
             <MudTabPanel Text="Crop Vitals" Icon="@Icons.Material.Filled.Grass">
                 <MudGrid Spacing="3" Class="pa-2">
@@ -198,7 +233,7 @@
                                           ChartOptions="@GetPhChartOptions()"
                                           AxisChartOptions="@GetAxisChartOptions()"
                                           Width="100%"
-                                          Height="300px" />
+                                          Height="250px" />
                             </MudCardContent>
                         </MudCard>
                     </MudItem>
@@ -214,7 +249,7 @@
                                           ChartOptions="@GetTempChartOptions()"
                                           AxisChartOptions="@GetAxisChartOptions()"
                                           Width="100%"
-                                          Height="300px" />
+                                          Height="250px" />
                             </MudCardContent>
                         </MudCard>
                     </MudItem>
@@ -230,7 +265,7 @@
                                           ChartOptions="@GetEcChartOptions()"
                                           AxisChartOptions="@GetAxisChartOptions()"
                                           Width="100%"
-                                          Height="300px" />
+                                          Height="250px" />
                             </MudCardContent>
                         </MudCard>
                     </MudItem>
@@ -246,7 +281,7 @@
                                           ChartOptions="@GetDoChartOptions()"
                                           AxisChartOptions="@GetAxisChartOptions()"
                                           Width="100%"
-                                          Height="300px" />
+                                          Height="250px" />
                             </MudCardContent>
                         </MudCard>
                     </MudItem>
@@ -267,7 +302,7 @@
                                           ChartOptions="@GetWaterLevelChartOptions()"
                                           AxisChartOptions="@GetAxisChartOptions()"
                                           Width="100%"
-                                          Height="300px" />
+                                          Height="250px" />
                             </MudCardContent>
                         </MudCard>
                     </MudItem>
@@ -283,7 +318,7 @@
                                           ChartOptions="@GetReservoirChartOptions()"
                                           AxisChartOptions="@GetAxisChartOptions()"
                                           Width="100%"
-                                          Height="300px" />
+                                          Height="250px" />
                             </MudCardContent>
                         </MudCard>
                     </MudItem>
@@ -353,7 +388,7 @@ else
             YAxisTicks = 1,
             YAxisLines = true,
             LineStrokeWidth = 3,
-            ChartPalette = new[] { "#11998e" }
+            ChartPalette = new[] { "#6366f1" }
         };
     }
 
@@ -364,7 +399,7 @@ else
             YAxisTicks = 1,
             YAxisLines = true,
             LineStrokeWidth = 3,
-            ChartPalette = new[] { "#134e5e" }
+            ChartPalette = new[] { "#f59e0b" }
         };
     }
 
@@ -375,7 +410,7 @@ else
             YAxisTicks = 1,
             YAxisLines = true,
             LineStrokeWidth = 3,
-            ChartPalette = new[] { "#56ab2f" }
+            ChartPalette = new[] { "#11998e" }
         };
     }
 
@@ -386,7 +421,7 @@ else
             YAxisTicks = 1,
             YAxisLines = true,
             LineStrokeWidth = 3,
-            ChartPalette = new[] { "#0f9b0f" }
+            ChartPalette = new[] { "#3b82f6" }
         };
     }
 
@@ -397,7 +432,7 @@ else
             YAxisTicks = 10,
             YAxisLines = true,
             LineStrokeWidth = 3,
-            ChartPalette = new[] { "#1e3c72" }
+            ChartPalette = new[] { "#ef4444" }
         };
     }
 
@@ -408,7 +443,7 @@ else
             YAxisTicks = 10,
             YAxisLines = true,
             LineStrokeWidth = 3,
-            ChartPalette = new[] { "#004e92" }
+            ChartPalette = new[] { "#8b5cf6" }
         };
     }
 

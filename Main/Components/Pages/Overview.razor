@@ -93,6 +93,33 @@
         font-weight: 600;
         font-size: 0.85rem;
     }
+    
+    @@media (max-width: 600px) {
+        .overview-header {
+            padding: 1rem;
+        }
+
+        .overview-header h3 {
+            font-size: 1.3rem;
+        }
+
+        .metric-card {
+            padding: 8px !important;
+        }
+
+        .metric-card .mud-typography-body2 {
+            font-size: 0.65rem !important;
+        }
+
+        .metric-card .mud-typography-h5 {
+            font-size: 1rem !important;
+        }
+
+        .metric-card > .mud-paper-outlined {
+            padding: 8px !important;
+        }
+    }
+
 </style>
 
 <div class="overview-header">
@@ -119,48 +146,48 @@
 
 @* --- CROP STATS --- *@
 <MudGrid Spacing="4" Class="mb-6">
-    <MudItem xs="12" sm="6" md="3">
+    <MudItem xs="6" sm="6" md="3">
         <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px;">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <MudStack Spacing="1">
                     <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Total Crops</MudText>
-                    <MudText Typo="Typo.h3" Style="font-weight: 700; color: #1f2937;">4</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">4</MudText>
                 </MudStack>
                 <MudIcon Icon="@Icons.Material.Filled.Grass" Style="color: #11998e;" Size="Size.Large" />
             </MudStack>
         </MudPaper>
     </MudItem>
 
-    <MudItem xs="12" sm="6" md="3">
+    <MudItem xs="6" sm="6" md="3">
         <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px;">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <MudStack Spacing="1">
                     <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Healthy Crops</MudText>
-                    <MudText Typo="Typo.h3" Style="font-weight: 700; color: #1f2937;">4</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">4</MudText>
                 </MudStack>
                 <MudIcon Icon="@Icons.Material.Filled.Favorite" Style="color: #11998e;" Size="Size.Large" />
             </MudStack>
         </MudPaper>
     </MudItem>
 
-    <MudItem xs="12" sm="6" md="3">
+    <MudItem xs="6" sm="6" md="3">
         <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px;">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <MudStack Spacing="1">
                     <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Average Health</MudText>
-                    <MudText Typo="Typo.h3" Style="font-weight: 700; color: #1f2937;">95%</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">95%</MudText>
                 </MudStack>
                 <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Style="color: #11998e;" Size="Size.Large" />
             </MudStack>
         </MudPaper>
     </MudItem>
 
-    <MudItem xs="12" sm="6" md="3">
+    <MudItem xs="6" sm="6" md="3">
         <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px;">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <MudStack Spacing="1">
                     <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Active Alerts</MudText>
-                    <MudText Typo="Typo.h3" Style="font-weight: 700; color: #1f2937;">@_alerts.Count</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">@_alerts.Count</MudText>
                 </MudStack>
                 <MudIcon Icon="@Icons.Material.Filled.Report" Style="color: #11998e;" Size="Size.Large" />
             </MudStack>
@@ -172,7 +199,7 @@
 <MudGrid Spacing="4">
     @* --- MAIN CONTENT (Metrics) --- *@
     <MudItem xs="12" md="8">
-        <MudPaper Elevation="2" Class="pa-5" Style="border-radius: 12px;">
+        <MudPaper Elevation="2" Class="pa-3 pa-sm-5" Style="border-radius: 12px;">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                     <MudIcon Icon="@Icons.Material.Filled.Sensors" Style="color: #11998e;" Size="Size.Medium" />
@@ -193,10 +220,10 @@
 
             <MudGrid Spacing="3">
                 @* Row 1 *@
-                <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-4 metric-card" Style="border-radius: 12px;">
+                <MudItem xs="6" sm="6">
+                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
-                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 12px; border-radius: 12px;">
+                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.InvertColors" Style="color: white;" Size="Size.Large" />
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
@@ -207,14 +234,14 @@
                     </MudPaper>
                 </MudItem>
 
-                <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-4 metric-card" Style="border-radius: 12px;">
+                <MudItem xs="6" sm="6">
+                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
-                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 12px; border-radius: 12px;">
+                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.Thermostat" Style="color: white;" Size="Size.Large" />
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
-                                <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Water Temperature</MudText>
+                                <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Water Temp</MudText>
                                 <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(_sensorData?.WaterTemp, "F1", "°C")</MudText>
                             </MudStack>
                         </MudStack>
@@ -222,10 +249,10 @@
                 </MudItem>
 
                 @* Row 2 *@
-                <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-4 metric-card" Style="border-radius: 12px;">
+                <MudItem xs="6" sm="6">
+                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
-                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 12px; border-radius: 12px;">
+                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.Water" Style="color: white;" Size="Size.Large" />
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
@@ -236,10 +263,10 @@
                     </MudPaper>
                 </MudItem>
 
-                <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-4 metric-card" Style="border-radius: 12px;">
+                <MudItem xs="6" sm="6">
+                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
-                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 12px; border-radius: 12px;">
+                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.Air" Style="color: white;" Size="Size.Large" />
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
@@ -251,24 +278,24 @@
                 </MudItem>
 
                 @* Row 3 *@
-                <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-4 metric-card" Style="border-radius: 12px;">
+                <MudItem xs="6" sm="6">
+                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
-                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 12px; border-radius: 12px;">
+                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.WbSunny" Style="color: white;" Size="Size.Large" />
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
-                                <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Light Intensity</MudText>
+                                <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Light</MudText>
                                 <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(_sensorData?.Light, "F0", " lux")</MudText>
                             </MudStack>
                         </MudStack>
                     </MudPaper>
                 </MudItem>
 
-                <MudItem xs="12" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-4 metric-card" Style="border-radius: 12px;">
+                <MudItem xs="6" sm="6">
+                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
-                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 12px; border-radius: 12px;">
+                            <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.Bolt" Style="color: white;" Size="Size.Large" />
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
