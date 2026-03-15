@@ -1,6 +1,8 @@
 ﻿@page "/analytics"
 @using MudBlazor
 @using MudBlazor.Charts
+@using Main.Services
+@inject DatabaseService Db
 
 <style>
     .mud-charts-gridlines-yaxis > path {
@@ -32,6 +34,7 @@
         font-size: 1rem;
         transition: all 0.3s ease;
         background-color: white;
+        width: 100%;
     }
 
     .custom-select:focus {
@@ -40,34 +43,12 @@
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
-    .custom-select:disabled {
-        background-color: #f5f5f5;
-        cursor: not-allowed;
-    }
-
     .empty-state {
         text-align: center;
         padding: 4rem 2rem;
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         border-radius: 12px;
         margin-top: 2rem;
-    }
-
-    .empty-state-icon {
-        font-size: 4rem;
-        color: #667eea;
-        margin-bottom: 1rem;
-    }
-
-    .empty-state h4 {
-        color: #2d3748;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }
-
-    .empty-state p {
-        color: #718096;
-        font-size: 1.1rem;
     }
 
     .filter-label {
@@ -85,78 +66,73 @@
         border-radius: 20px;
         font-size: 0.9rem;
         font-weight: 500;
+        margin-right: 0.5rem;
+        margin-bottom: 0.5rem;
     }
 
-    .mud-tabs-toolbar {
-        background-color: #f0fdf4 !important;
-        border-radius: 12px !important;
-        padding: 6px !important;
-        width: fit-content !important;
-        border: 1px solid #d1fae5 !important;
-        margin-bottom: 1.5rem !important;
-    }
-
-    .mud-tab {
-        font-weight: 600 !important;
-        font-size: 0.95rem !important;
-        text-transform: none !important;
-        padding: 1rem 2rem !important;
-        border-radius: 10px !important;
-        color: #6b7280 !important;
-        background: transparent !important;
-        min-width: unset !important;
-        margin: 0 5px !important;
-    }
-
-    .mud-tab-active {
-        background: white !important;
-        color: #11998e !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;
-    }
-
-    .mud-tab-slider {
-        display: none !important;
-        height: 0 !important;
-    }
-
-    .mud-tabs-header {
-        background: transparent !important;
-    }
-
-        .mud-tabs-header .mud-tabs-scroll-button {
-            display: none !important;
-        }
-
-    .mud-tab-panel {
-        padding: 0 !important;
-    }
-
-    .historical-section {
-        margin-top: 3rem;
-    }
-
-    .section-title {
-        color: #2d3748;
-        font-weight: 700;
-        font-size: 1.5rem;
-        margin-bottom: 1rem;
+    .alert-item {
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
         display: flex;
-        align-items: center;
-        gap: 0.5rem;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .alert-warning {
+        background-color: #fffbeb;
+        border-left: 4px solid #f59e0b;
+    }
+
+    .alert-critical {
+        background-color: #fef2f2;
+        border-left: 4px solid #ef4444;
+    }
+
+    .alert-timestamp {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        margin-top: 0.2rem;
+    }
+
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .history-table th {
+        background-color: #f0fdf4;
+        color: #11998e;
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-weight: 600;
+        border-bottom: 2px solid #d1fae5;
+    }
+
+    .history-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f3f4f6;
+        color: #374151;
+    }
+
+    .history-table tr:hover td {
+        background-color: #f9fafb;
+    }
+
+    .mock-badge {
+        display: inline-block;
+        background-color: #fef3c7;
+        color: #92400e;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
     }
 
     @@media (max-width: 600px) {
-        .analytics-header {
-            padding: 1rem;
-        }
-
-        .analytics-header h3 {
-            font-size: 1.3rem;
-        }
-
-        .mud-chart {
-            overflow-x: auto;
-        }
+        .analytics-header { padding: 1rem; }
+        .analytics-header h3 { font-size: 1.3rem; }
     }
 </style>
 
@@ -168,6 +144,7 @@
     <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Monitor your hydroponic system performance and crop vitals</p>
 </div>
 
+@* --- BATCH SELECTOR --- *@
 <div class="filter-card">
     <MudGrid Spacing="3">
         <MudItem xs="12" md="6">
@@ -175,11 +152,11 @@
                 <MudIcon Icon="@Icons.Material.Filled.Layers" Size="Size.Small" Style="vertical-align: middle; margin-right: 0.3rem;" />
                 Select Batch
             </label>
-            <select class="form-select custom-select" @onchange="OnBatchSelected">
+            <select class="custom-select" @onchange="OnBatchSelected">
                 <option value="">Choose a batch to begin...</option>
-                @foreach (var batch in batches)
+                @foreach (var batch in allBatches)
                 {
-                    <option value="@batch.Id">@batch.Name</option>
+                    <option value="@batch.Id">Batch @batch.Id — Started @batch.StartDate.ToShortDateString()</option>
                 }
             </select>
         </MudItem>
@@ -188,12 +165,12 @@
                 <MudIcon Icon="@Icons.Material.Filled.Grass" Size="Size.Small" Style="vertical-align: middle; margin-right: 0.3rem;" />
                 Crops in Selected Batch
             </label>
-            @if (crops.Any())
+            @if (selectedCrops.Any())
             {
                 <div style="padding: 0.75rem; background-color: #f8f9fa; border-radius: 6px; border: 2px solid #e0e0e0;">
-                    @foreach (var crop in crops)
+                    @foreach (var crop in selectedCrops)
                     {
-                        <span class="crop-badge" style="margin-right: 0.5rem; margin-bottom: 0.5rem;">@crop.Name</span>
+                        <span class="crop-badge">@crop.Type</span>
                     }
                 </div>
             }
@@ -210,376 +187,462 @@
 
 @if (dataLoaded)
 {
-    <div class="historical-section">
-        <div class="section-title">
-            <MudIcon Icon="@Icons.Material.Filled.Timeline" />
-            Historical Data
-        </div>
+    @if (usingMockData)
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            No real sensor readings found for this batch. Showing sample data for demonstration.
+            <span class="mock-badge">DEMO DATA</span>
+        </MudAlert>
+    }
 
-        <MudTabs Elevation="3" Rounded="true" ApplyEffectsToChildren="true"
-                 PanelClass="pa-4" Class="mb-4">
+    <MudTabs Elevation="3" Rounded="true" ApplyEffectsToChildren="true" PanelClass="pa-4" Class="mb-4">
 
-            <MudTabPanel Text="Crop Vitals" Icon="@Icons.Material.Filled.Grass">
-                <MudGrid Spacing="3" Class="pa-2">
-                    <MudItem xs="12" md="6">
-                        <MudCard Elevation="4">
-                            <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
-                                <MudText Typo="Typo.h6">Water pH</MudText>
-                            </MudCardHeader>
-                            <MudCardContent>
-                                <MudChart ChartType="ChartType.Line"
-                                          ChartSeries="@PhSeries"
-                                          XAxisLabels="@Labels"
-                                          ChartOptions="@GetPhChartOptions()"
-                                          AxisChartOptions="@GetAxisChartOptions()"
-                                          Width="100%"
-                                          Height="250px" />
-                            </MudCardContent>
-                        </MudCard>
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudCard Elevation="4">
-                            <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
-                                <MudText Typo="Typo.h6">Water Temperature (°C)</MudText>
-                            </MudCardHeader>
-                            <MudCardContent>
-                                <MudChart ChartType="ChartType.Line"
-                                          ChartSeries="@TempSeries"
-                                          XAxisLabels="@Labels"
-                                          ChartOptions="@GetTempChartOptions()"
-                                          AxisChartOptions="@GetAxisChartOptions()"
-                                          Width="100%"
-                                          Height="250px" />
-                            </MudCardContent>
-                        </MudCard>
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudCard Elevation="4">
-                            <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
-                                <MudText Typo="Typo.h6">EC / TDS</MudText>
-                            </MudCardHeader>
-                            <MudCardContent>
-                                <MudChart ChartType="ChartType.Line"
-                                          ChartSeries="@EcSeries"
-                                          XAxisLabels="@Labels"
-                                          ChartOptions="@GetEcChartOptions()"
-                                          AxisChartOptions="@GetAxisChartOptions()"
-                                          Width="100%"
-                                          Height="250px" />
-                            </MudCardContent>
-                        </MudCard>
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudCard Elevation="4">
-                            <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
-                                <MudText Typo="Typo.h6">Dissolved Oxygen</MudText>
-                            </MudCardHeader>
-                            <MudCardContent>
-                                <MudChart ChartType="ChartType.Line"
-                                          ChartSeries="@DoSeries"
-                                          XAxisLabels="@Labels"
-                                          ChartOptions="@GetDoChartOptions()"
-                                          AxisChartOptions="@GetAxisChartOptions()"
-                                          Width="100%"
-                                          Height="250px" />
-                            </MudCardContent>
-                        </MudCard>
-                    </MudItem>
-                </MudGrid>
-            </MudTabPanel>
+        @* ===================== TAB 1: CROP VITALS ===================== *@
+        <MudTabPanel Text="Crop Vitals" Icon="@Icons.Material.Filled.Grass">
+            <MudGrid Spacing="3" Class="pa-2">
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="4">
+                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <MudText Typo="Typo.h6">Water pH</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudChart ChartType="ChartType.Line" ChartSeries="@PhSeries" XAxisLabels="@Labels"
+                                      ChartOptions="@GetChartOptions("#6366f1")" AxisChartOptions="@GetAxisOptions()"
+                                      Width="100%" Height="250px" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="4">
+                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <MudText Typo="Typo.h6">Water Temperature (°C)</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudChart ChartType="ChartType.Line" ChartSeries="@WaterTempSeries" XAxisLabels="@Labels"
+                                      ChartOptions="@GetChartOptions("#f59e0b")" AxisChartOptions="@GetAxisOptions()"
+                                      Width="100%" Height="250px" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="4">
+                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <MudText Typo="Typo.h6">TDS (PPM)</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudChart ChartType="ChartType.Line" ChartSeries="@TdsSeries" XAxisLabels="@Labels"
+                                      ChartOptions="@GetChartOptions("#11998e")" AxisChartOptions="@GetAxisOptions()"
+                                      Width="100%" Height="250px" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="4">
+                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <MudText Typo="Typo.h6">Dissolved Oxygen (mg/L)</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudChart ChartType="ChartType.Line" ChartSeries="@DoSeries" XAxisLabels="@Labels"
+                                      ChartOptions="@GetChartOptions("#3b82f6")" AxisChartOptions="@GetAxisOptions()"
+                                      Width="100%" Height="250px" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
 
-            <MudTabPanel Text="System Status" Icon="@Icons.Material.Filled.Settings">
-                <MudGrid Spacing="3" Class="pa-2">
-                    <MudItem xs="12" md="6">
-                        <MudCard Elevation="4">
-                            <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
-                                <MudText Typo="Typo.h6">Water Level (%)</MudText>
-                            </MudCardHeader>
-                            <MudCardContent>
-                                <MudChart ChartType="ChartType.Line"
-                                          ChartSeries="@WaterLevelSeries"
-                                          XAxisLabels="@Labels"
-                                          ChartOptions="@GetWaterLevelChartOptions()"
-                                          AxisChartOptions="@GetAxisChartOptions()"
+        @* ===================== TAB 2: SYSTEM STATUS ===================== *@
+        <MudTabPanel Text="System Status" Icon="@Icons.Material.Filled.Settings">
+            <MudGrid Spacing="3" Class="pa-2">
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="4">
+                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <MudText Typo="Typo.h6">Water Level (%)</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudChart ChartType="ChartType.Line" ChartSeries="@WaterLevelSeries" XAxisLabels="@Labels"
+                                      ChartOptions="@GetChartOptions("#ef4444")" AxisChartOptions="@GetAxisOptions()"
+                                      Width="100%" Height="250px" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="4">
+                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <MudText Typo="Typo.h6">Reservoir Level (%)</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudChart ChartType="ChartType.Line" ChartSeries="@ReservoirLevelSeries" XAxisLabels="@Labels"
+                                      ChartOptions="@GetChartOptions("#8b5cf6")" AxisChartOptions="@GetAxisOptions()"
+                                      Width="100%" Height="250px" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="4">
+                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <MudText Typo="Typo.h6">Air Temperature (°C)</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudChart ChartType="ChartType.Line" ChartSeries="@AirTempSeries" XAxisLabels="@Labels"
+                                      ChartOptions="@GetChartOptions("#f97316")" AxisChartOptions="@GetAxisOptions()"
+                                      Width="100%" Height="250px" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="4">
+                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <MudText Typo="Typo.h6">Humidity (%)</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudChart ChartType="ChartType.Line" ChartSeries="@HumiditySeries" XAxisLabels="@Labels"
+                                      ChartOptions="@GetChartOptions("#06b6d4")" AxisChartOptions="@GetAxisOptions()"
+                                      Width="100%" Height="250px" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="4">
+                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <MudText Typo="Typo.h6">Light Intensity (lux)</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudChart ChartType="ChartType.Line" ChartSeries="@LightSeries" XAxisLabels="@Labels"
+                                      ChartOptions="@GetChartOptions("#eab308")" AxisChartOptions="@GetAxisOptions()"
+                                      Width="100%" Height="250px" />
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        @* ===================== TAB 3: ALERTS LOG ===================== *@
+        <MudTabPanel Text="Alerts" Icon="@Icons.Material.Filled.Warning">
+            @if (alerts.Any())
+            {
+                <MudText Typo="Typo.body2" Style="color: #6b7280; margin-bottom: 1rem;">
+                    @alerts.Count alert(s) detected for this batch.
+                </MudText>
+                @foreach (var alert in alerts.OrderByDescending(a => a.Timestamp))
+                {
+                    <div class="@("alert-item " + (alert.IsCritical ? "alert-critical" : "alert-warning"))">
+                        <MudIcon Icon="@(alert.IsCritical ? Icons.Material.Filled.Error : Icons.Material.Filled.Warning)"
+                                 Style="@("color: " + (alert.IsCritical ? "#ef4444" : "#f59e0b") + "; margin-top: 2px;")"
+                                 Size="Size.Small" />
+                        <div>
+                            <div style="font-weight: 500; color: #1f2937;">@alert.Message</div>
+                            <div class="alert-timestamp">@alert.Timestamp.ToString("MMM dd, yyyy — hh:mm tt")</div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-state">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                    <h4 style="color: #2d3748; font-weight: 600;">No Alerts</h4>
+                    <p style="color: #718096;">All readings were within safe ranges for this batch.</p>
+                </div>
+            }
+        </MudTabPanel>
+
+        @* ===================== TAB 4: CROP STATS ===================== *@
+        <MudTabPanel Text="Crop Stats" Icon="@Icons.Material.Filled.PieChart">
+            <MudGrid Spacing="4" Class="pa-2">
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="4">
+                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <MudText Typo="Typo.h6">Lettuce Types Grown (All Batches)</MudText>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            @if (pieData.Any())
+                            {
+                                <MudChart ChartType="ChartType.Pie"
+                                          InputData="@pieData"
+                                          InputLabels="@pieLabels"
                                           Width="100%"
-                                          Height="250px" />
-                            </MudCardContent>
-                        </MudCard>
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudCard Elevation="4">
-                            <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
-                                <MudText Typo="Typo.h6">Reservoir Level (%)</MudText>
-                            </MudCardHeader>
-                            <MudCardContent>
-                                <MudChart ChartType="ChartType.Line"
-                                          ChartSeries="@ReservoirLevelSeries"
-                                          XAxisLabels="@Labels"
-                                          ChartOptions="@GetReservoirChartOptions()"
-                                          AxisChartOptions="@GetAxisChartOptions()"
-                                          Width="100%"
-                                          Height="250px" />
-                            </MudCardContent>
-                        </MudCard>
-                    </MudItem>
-                </MudGrid>
-            </MudTabPanel>
-        </MudTabs>
-    </div>
+                                          Height="300px" />
+                            }
+                            else
+                            {
+                                <p style="color: #718096; text-align: center; padding: 2rem;">No crop data available yet.</p>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="4">
+                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                            <MudText Typo="Typo.h6">Crop History</MudText>
+                        </MudCardHeader>
+                        <MudCardContent Style="padding: 0;">
+                            @if (allBatches.Any())
+                            {
+                                <table class="history-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Batch</th>
+                                            <th>Crops</th>
+                                            <th>Started</th>
+                                            <th>Ended</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var batch in allBatches.OrderByDescending(b => b.StartDate))
+                                        {
+                                            var batchCrops = allCrops.Where(c => c.BatchId == batch.Id).ToList();
+                                            <tr>
+                                                <td><b>Batch @batch.Id</b></td>
+                                                <td>
+                                                    @foreach (var crop in batchCrops)
+                                                    {
+                                                        <span class="crop-badge" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">@crop.Type</span>
+                                                    }
+                                                </td>
+                                                <td>@batch.StartDate.ToShortDateString()</td>
+                                                <td>@(batch.EndDate.HasValue ? batch.EndDate.Value.ToShortDateString() : "—")</td>
+                                                <td>
+                                                    @if (batch.EndDate.HasValue)
+                                                    {
+                                                        <span style="color: #11998e; font-weight: 600;">✅ Harvested</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span style="color: #3b82f6; font-weight: 600;">🌱 Growing</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                            else
+                            {
+                                <p style="color: #718096; text-align: center; padding: 2rem;">No batch history yet.</p>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+    </MudTabs>
 }
 else
 {
     <div class="empty-state">
-        <div class="empty-state-icon">📊</div>
-        <h4>No Data Yet</h4>
-        <p>Select a batch from the dropdown above to view analytics and insights</p>
+        <div style="font-size: 4rem; margin-bottom: 1rem;">📊</div>
+        <h4 style="color: #2d3748; font-weight: 600;">No Data Yet</h4>
+        <p style="color: #718096; font-size: 1.1rem;">Select a batch from the dropdown above to view analytics</p>
     </div>
 }
 
-
 @code {
-    // --- Mock Data Models ---
-    public class MockBatch { public string Id { get; set; } = ""; public string Name { get; set; } = ""; }
 
-    public class MockCrop
+    private class AlertEntry
     {
-        public string Id { get; set; } = "";
-        public string BatchId { get; set; } = "";
-        public string Name { get; set; } = "";
-    }
-
-    public class MockSnapshot
-    {
+        public string Message { get; set; } = "";
         public DateTime Timestamp { get; set; }
-        public double PH { get; set; }
-        public double Temp { get; set; }
-        public double EC { get; set; }
-        public double DO { get; set; }
-        public double WaterLevel { get; set; }
-        public double ReservoirLevel { get; set; }
+        public bool IsCritical { get; set; }
     }
 
-    // --- Page State ---
-    private List<MockBatch> batches = new();
-    private List<MockCrop> allCrops = new();
-    private List<MockCrop> crops = new();
-    private string? selectedBatchId;
-    private bool dataLoaded = false;
+    private static class Thresholds
+    {
+        public const double PhWarnLow = 5.8, PhWarnHigh = 6.2;
+        public const double PhCritLow = 5.5, PhCritHigh = 6.5;
+        public const double WaterTempWarnLow = 19, WaterTempWarnHigh = 23;
+        public const double WaterTempCritLow = 18, WaterTempCritHigh = 24;
+        public const double AirTempWarnLow = 17, AirTempWarnHigh = 25;
+        public const double AirTempCritLow = 16, AirTempCritHigh = 26;
+        public const double HumidityWarnLow = 55, HumidityWarnHigh = 65;
+        public const double HumidityCritLow = 50, HumidityCritHigh = 70;
+        public const double TdsWarnLow = 500, TdsWarnHigh = 700;
+        public const double TdsCritLow = 400, TdsCritHigh = 800;
+        public const double DoWarnLow = 7;
+        public const double DoCritLow = 6;
+        public const double WaterLevelWarnLow = 30;
+        public const double WaterLevelCritLow = 20;
+        public const double LightWarnLow = 2500, LightWarnHigh = 3500;
+        public const double LightCritLow = 2000, LightCritHigh = 4000;
+    }
 
-    // --- Chart Data ---
-    private List<MockSnapshot> snapshotData = new();
+    private List<Batch> allBatches = new();
+    private List<Crop> allCrops = new();
+    private List<Crop> selectedCrops = new();
+    private List<SensorReading> readings = new();
+    private List<AlertEntry> alerts = new();
+    private int? selectedBatchId;
+    private bool dataLoaded = false;
+    private bool usingMockData = false;
+
     private List<ChartSeries> PhSeries = new();
-    private List<ChartSeries> TempSeries = new();
-    private List<ChartSeries> EcSeries = new();
+    private List<ChartSeries> WaterTempSeries = new();
+    private List<ChartSeries> TdsSeries = new();
     private List<ChartSeries> DoSeries = new();
     private List<ChartSeries> WaterLevelSeries = new();
     private List<ChartSeries> ReservoirLevelSeries = new();
+    private List<ChartSeries> AirTempSeries = new();
+    private List<ChartSeries> HumiditySeries = new();
+    private List<ChartSeries> LightSeries = new();
     private string[] Labels = new string[0];
 
-    protected override void OnInitialized()
+    private double[] pieData = new double[0];
+    private string[] pieLabels = new string[0];
+
+    protected override async Task OnInitializedAsync()
     {
-        LoadMockFilterData();
+        allBatches = await Db.GetAllBatchesAsync();
+        allCrops = await Db.GetAllCropsAsync();
+        BuildPieChart();
     }
 
-    private ChartOptions GetPhChartOptions()
+    private async Task OnBatchSelected(ChangeEventArgs e)
     {
-        return new ChartOptions
+        var value = e.Value?.ToString();
+        if (string.IsNullOrEmpty(value))
         {
-            YAxisTicks = 1,
-            YAxisLines = true,
-            LineStrokeWidth = 3,
-            ChartPalette = new[] { "#6366f1" }
-        };
-    }
+            selectedBatchId = null;
+            selectedCrops.Clear();
+            ClearCharts();
+            return;
+        }
 
-    private ChartOptions GetTempChartOptions()
-    {
-        return new ChartOptions
+        selectedBatchId = int.Parse(value);
+        selectedCrops = allCrops.Where(c => c.BatchId == selectedBatchId).ToList();
+        readings = await Db.GetReadingsByBatchAsync(selectedBatchId.Value);
+
+        if (readings.Any())
         {
-            YAxisTicks = 1,
-            YAxisLines = true,
-            LineStrokeWidth = 3,
-            ChartPalette = new[] { "#f59e0b" }
-        };
-    }
-
-    private ChartOptions GetEcChartOptions()
-    {
-        return new ChartOptions
-        {
-            YAxisTicks = 1,
-            YAxisLines = true,
-            LineStrokeWidth = 3,
-            ChartPalette = new[] { "#11998e" }
-        };
-    }
-
-    private ChartOptions GetDoChartOptions()
-    {
-        return new ChartOptions
-        {
-            YAxisTicks = 1,
-            YAxisLines = true,
-            LineStrokeWidth = 3,
-            ChartPalette = new[] { "#3b82f6" }
-        };
-    }
-
-    private ChartOptions GetWaterLevelChartOptions()
-    {
-        return new ChartOptions
-        {
-            YAxisTicks = 10,
-            YAxisLines = true,
-            LineStrokeWidth = 3,
-            ChartPalette = new[] { "#ef4444" }
-        };
-    }
-
-    private ChartOptions GetReservoirChartOptions()
-    {
-        return new ChartOptions
-        {
-            YAxisTicks = 10,
-            YAxisLines = true,
-            LineStrokeWidth = 3,
-            ChartPalette = new[] { "#8b5cf6" }
-        };
-    }
-
-    private AxisChartOptions GetAxisChartOptions()
-    {
-        return new AxisChartOptions
-        {
-            MatchBoundsToSize = true,
-            XAxisLabelRotation = 0
-        };
-    }
-
-    private void LoadMockFilterData()
-    {
-        batches = new List<MockBatch>
-        {
-            new MockBatch { Id = "b1", Name = "Lettuce Batch 1" },
-            new MockBatch { Id = "b2", Name = "Lettuce Batch 2" }
-        };
-
-        allCrops = new List<MockCrop>
-        {
-            new MockCrop { Id = "c1", BatchId = "b1", Name = "Romaine" },
-            new MockCrop { Id = "c2", BatchId = "b1", Name = "Butterhead" },
-            new MockCrop { Id = "c3", BatchId = "b2", Name = "Loose-leaf" },
-            new MockCrop { Id = "c4", BatchId = "b2", Name = "Iceberg" }
-        };
-    }
-
-    private void OnBatchSelected(ChangeEventArgs e)
-    {
-        selectedBatchId = e.Value?.ToString();
-
-        if (string.IsNullOrEmpty(selectedBatchId))
-        {
-            crops.Clear();
-            ClearChartData();
+            usingMockData = false;
+            BuildChartsFromReadings(readings);
         }
         else
         {
-            crops = allCrops.Where(c => c.BatchId == selectedBatchId).ToList();
-            LoadMockChartData();
+            usingMockData = true;
+            BuildMockCharts();
         }
-    }
 
-    private void LoadMockChartData()
-    {
-        var now = DateTime.Now;
-        snapshotData = new List<MockSnapshot>
-        {
-            new MockSnapshot { Timestamp = now.AddHours(-8), PH = 6.2, Temp = 19.8, EC = 1.7, DO = 7.5, WaterLevel = 100, ReservoirLevel = 85 },
-            new MockSnapshot { Timestamp = now.AddHours(-7), PH = 6.1, Temp = 20.0, EC = 1.7, DO = 7.6, WaterLevel = 100, ReservoirLevel = 84 },
-            new MockSnapshot { Timestamp = now.AddHours(-6), PH = 6.0, Temp = 20.2, EC = 1.8, DO = 7.7, WaterLevel = 99, ReservoirLevel = 83 },
-            new MockSnapshot { Timestamp = now.AddHours(-5), PH = 5.9, Temp = 20.3, EC = 1.8, DO = 7.8, WaterLevel = 99, ReservoirLevel = 82 },
-            new MockSnapshot { Timestamp = now.AddHours(-4), PH = 6.0, Temp = 20.5, EC = 1.8, DO = 7.8, WaterLevel = 100, ReservoirLevel = 80 },
-            new MockSnapshot { Timestamp = now.AddHours(-3), PH = 6.1, Temp = 20.4, EC = 1.9, DO = 7.6, WaterLevel = 99, ReservoirLevel = 79 },
-            new MockSnapshot { Timestamp = now.AddHours(-2), PH = 6.0, Temp = 20.5, EC = 1.8, DO = 7.8, WaterLevel = 100, ReservoirLevel = 80 },
-            new MockSnapshot { Timestamp = now.AddHours(-1), PH = 6.1, Temp = 20.6, EC = 1.9, DO = 7.7, WaterLevel = 99, ReservoirLevel = 78 },
-            new MockSnapshot { Timestamp = now, PH = 5.9, Temp = 20.4, EC = 1.8, DO = 7.9, WaterLevel = 98, ReservoirLevel = 76 }
-        };
-
-        Labels = snapshotData.Select(p => p.Timestamp.ToString("HH:mm")).ToArray();
-
-        PhSeries = new List<ChartSeries>
-        {
-            new ChartSeries
-            {
-                Name = "Water pH",
-                Data = snapshotData.Select(s => s.PH).ToArray(),
-                ShowDataMarkers = true
-            }
-        };
-
-        TempSeries = new List<ChartSeries>
-        {
-            new ChartSeries
-            {
-                Name = "Water Temp (°C)",
-                Data = snapshotData.Select(s => s.Temp).ToArray(),
-                ShowDataMarkers = true
-            }
-        };
-
-        EcSeries = new List<ChartSeries>
-        {
-            new ChartSeries
-            {
-                Name = "EC/TDS",
-                Data = snapshotData.Select(s => s.EC).ToArray(),
-                ShowDataMarkers = true
-            }
-        };
-
-        DoSeries = new List<ChartSeries>
-        {
-            new ChartSeries
-            {
-                Name = "Dissolved Oxygen",
-                Data = snapshotData.Select(s => s.DO).ToArray(),
-                ShowDataMarkers = true
-            }
-        };
-
-        WaterLevelSeries = new List<ChartSeries>
-        {
-            new ChartSeries
-            {
-                Name = "Water Level (%)",
-                Data = snapshotData.Select(s => s.WaterLevel).ToArray(),
-                ShowDataMarkers = true
-            }
-        };
-
-        ReservoirLevelSeries = new List<ChartSeries>
-        {
-            new ChartSeries
-            {
-                Name = "Reservoir Level (%)",
-                Data = snapshotData.Select(s => s.ReservoirLevel).ToArray(),
-                ShowDataMarkers = true
-            }
-        };
-
+        BuildAlerts();
         dataLoaded = true;
     }
 
-    private void ClearChartData()
+    private void BuildChartsFromReadings(List<SensorReading> data)
+    {
+        Labels = data.Select(r => r.Timestamp.ToString("HH:mm")).ToArray();
+        PhSeries = new List<ChartSeries> { new ChartSeries { Name = "pH", Data = data.Select(r => r.Ph).ToArray(), ShowDataMarkers = true } };
+        WaterTempSeries = new List<ChartSeries> { new ChartSeries { Name = "Water Temp (°C)", Data = data.Select(r => r.WaterTemp).ToArray(), ShowDataMarkers = true } };
+        TdsSeries = new List<ChartSeries> { new ChartSeries { Name = "TDS (PPM)", Data = data.Select(r => r.Tds).ToArray(), ShowDataMarkers = true } };
+        DoSeries = new List<ChartSeries> { new ChartSeries { Name = "DO (mg/L)", Data = data.Select(r => r.DissolvedOxygen).ToArray(), ShowDataMarkers = true } };
+        WaterLevelSeries = new List<ChartSeries> { new ChartSeries { Name = "Water Level (%)", Data = data.Select(r => r.WaterLevel).ToArray(), ShowDataMarkers = true } };
+        ReservoirLevelSeries = new List<ChartSeries> { new ChartSeries { Name = "Reservoir Level (%)", Data = data.Select(r => r.ReservoirLevel).ToArray(), ShowDataMarkers = true } };
+        AirTempSeries = new List<ChartSeries> { new ChartSeries { Name = "Air Temp (°C)", Data = data.Select(r => r.AirTemp).ToArray(), ShowDataMarkers = true } };
+        HumiditySeries = new List<ChartSeries> { new ChartSeries { Name = "Humidity (%)", Data = data.Select(r => r.Humidity).ToArray(), ShowDataMarkers = true } };
+        LightSeries = new List<ChartSeries> { new ChartSeries { Name = "Light (lux)", Data = data.Select(r => r.LightIntensity).ToArray(), ShowDataMarkers = true } };
+    }
+
+    private void BuildMockCharts()
+    {
+        var now = DateTime.Now;
+        var mock = new List<SensorReading>
+        {
+            new SensorReading { Timestamp = now.AddHours(-8), Ph = 6.2, WaterTemp = 20.1, AirTemp = 21.0, Humidity = 58, Tds = 580, DissolvedOxygen = 7.5, WaterLevel = 95, ReservoirLevel = 85, LightIntensity = 3100 },
+            new SensorReading { Timestamp = now.AddHours(-7), Ph = 6.1, WaterTemp = 20.3, AirTemp = 21.2, Humidity = 59, Tds = 590, DissolvedOxygen = 7.6, WaterLevel = 95, ReservoirLevel = 84, LightIntensity = 3200 },
+            new SensorReading { Timestamp = now.AddHours(-6), Ph = 6.0, WaterTemp = 20.5, AirTemp = 21.5, Humidity = 60, Tds = 600, DissolvedOxygen = 7.7, WaterLevel = 94, ReservoirLevel = 83, LightIntensity = 3300 },
+            new SensorReading { Timestamp = now.AddHours(-5), Ph = 5.9, WaterTemp = 20.4, AirTemp = 21.3, Humidity = 61, Tds = 610, DissolvedOxygen = 7.8, WaterLevel = 94, ReservoirLevel = 82, LightIntensity = 3250 },
+            new SensorReading { Timestamp = now.AddHours(-4), Ph = 5.7, WaterTemp = 20.6, AirTemp = 21.8, Humidity = 62, Tds = 620, DissolvedOxygen = 7.8, WaterLevel = 93, ReservoirLevel = 80, LightIntensity = 3100 },
+            new SensorReading { Timestamp = now.AddHours(-3), Ph = 6.1, WaterTemp = 20.5, AirTemp = 22.0, Humidity = 60, Tds = 630, DissolvedOxygen = 7.6, WaterLevel = 93, ReservoirLevel = 79, LightIntensity = 2900 },
+            new SensorReading { Timestamp = now.AddHours(-2), Ph = 6.0, WaterTemp = 20.7, AirTemp = 21.9, Humidity = 59, Tds = 640, DissolvedOxygen = 7.8, WaterLevel = 92, ReservoirLevel = 78, LightIntensity = 2800 },
+            new SensorReading { Timestamp = now.AddHours(-1), Ph = 6.1, WaterTemp = 20.6, AirTemp = 21.7, Humidity = 58, Tds = 650, DissolvedOxygen = 7.7, WaterLevel = 92, ReservoirLevel = 77, LightIntensity = 1800 },
+            new SensorReading { Timestamp = now,              Ph = 5.9, WaterTemp = 20.4, AirTemp = 21.5, Humidity = 60, Tds = 660, DissolvedOxygen = 7.9, WaterLevel = 91, ReservoirLevel = 76, LightIntensity = 500  },
+        };
+
+        readings = mock;
+        BuildChartsFromReadings(mock);
+    }
+
+    private void BuildAlerts()
+    {
+        alerts.Clear();
+        foreach (var r in readings)
+        {
+            if (r.Ph < Thresholds.PhCritLow || r.Ph > Thresholds.PhCritHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"pH is critically off at {r.Ph:F1} — immediate adjustment needed (safe range: 5.5–6.5)" });
+            else if (r.Ph < Thresholds.PhWarnLow || r.Ph > Thresholds.PhWarnHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"pH is slightly off at {r.Ph:F1} — optimal range is 5.8–6.2" });
+
+            if (r.WaterTemp < Thresholds.WaterTempCritLow || r.WaterTemp > Thresholds.WaterTempCritHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Water temperature is critically {(r.WaterTemp < Thresholds.WaterTempCritLow ? "low" : "high")} at {r.WaterTemp:F1}°C — plant health at risk" });
+            else if (r.WaterTemp < Thresholds.WaterTempWarnLow || r.WaterTemp > Thresholds.WaterTempWarnHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Water temperature is {r.WaterTemp:F1}°C — slightly outside optimal range (19–23°C)" });
+
+            if (r.AirTemp < Thresholds.AirTempCritLow || r.AirTemp > Thresholds.AirTempCritHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Air temperature is critically {(r.AirTemp < Thresholds.AirTempCritLow ? "low" : "high")} at {r.AirTemp:F1}°C" });
+            else if (r.AirTemp < Thresholds.AirTempWarnLow || r.AirTemp > Thresholds.AirTempWarnHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Air temperature is {r.AirTemp:F1}°C — slightly outside optimal range (17–25°C)" });
+
+            if (r.Humidity < Thresholds.HumidityCritLow || r.Humidity > Thresholds.HumidityCritHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Humidity is critically {(r.Humidity < Thresholds.HumidityCritLow ? "low" : "high")} at {r.Humidity:F0}%" });
+            else if (r.Humidity < Thresholds.HumidityWarnLow || r.Humidity > Thresholds.HumidityWarnHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Humidity is {r.Humidity:F0}% — slightly outside optimal range (55–65%)" });
+
+            if (r.Tds < Thresholds.TdsCritLow || r.Tds > Thresholds.TdsCritHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Nutrient concentration is critically {(r.Tds < Thresholds.TdsCritLow ? "low" : "high")} at {r.Tds:F0} PPM — dosing adjustment needed" });
+            else if (r.Tds < Thresholds.TdsWarnLow || r.Tds > Thresholds.TdsWarnHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Nutrient concentration is {r.Tds:F0} PPM — slightly outside optimal range (500–700 PPM)" });
+
+            if (r.DissolvedOxygen < Thresholds.DoCritLow)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Dissolved oxygen is critically low at {r.DissolvedOxygen:F1} mg/L — plants may suffocate" });
+            else if (r.DissolvedOxygen < Thresholds.DoWarnLow)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Dissolved oxygen is low at {r.DissolvedOxygen:F1} mg/L — check air pump" });
+
+            if (r.WaterLevel < Thresholds.WaterLevelCritLow)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Water level is critically low at {r.WaterLevel:F0}% — refill immediately" });
+            else if (r.WaterLevel < Thresholds.WaterLevelWarnLow)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Water level is low at {r.WaterLevel:F0}% — consider refilling soon" });
+
+            if (r.LightIntensity < Thresholds.LightCritLow || r.LightIntensity > Thresholds.LightCritHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Light intensity is critically {(r.LightIntensity < Thresholds.LightCritLow ? "low" : "high")} at {r.LightIntensity:F0} lux — check grow lights" });
+            else if (r.LightIntensity < Thresholds.LightWarnLow || r.LightIntensity > Thresholds.LightWarnHigh)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Light intensity is {r.LightIntensity:F0} lux — slightly outside optimal range (2500–3500 lux)" });
+        }
+    }
+
+    private void BuildPieChart()
+    {
+        var grouped = allCrops
+            .GroupBy(c => c.Type)
+            .OrderByDescending(g => g.Count())
+            .ToList();
+
+        pieData = grouped.Select(g => (double)g.Count()).ToArray();
+        pieLabels = grouped.Select(g => g.Key).ToArray();
+    }
+
+    private void ClearCharts()
     {
         dataLoaded = false;
-        snapshotData.Clear();
-        PhSeries.Clear();
-        TempSeries.Clear();
-        EcSeries.Clear();
-        DoSeries.Clear();
-        WaterLevelSeries.Clear();
-        ReservoirLevelSeries.Clear();
+        usingMockData = false;
+        readings.Clear();
+        alerts.Clear();
+        PhSeries.Clear(); WaterTempSeries.Clear(); TdsSeries.Clear();
+        DoSeries.Clear(); WaterLevelSeries.Clear(); ReservoirLevelSeries.Clear();
+        AirTempSeries.Clear(); HumiditySeries.Clear(); LightSeries.Clear();
         Labels = new string[0];
     }
+
+    private ChartOptions GetChartOptions(string color) => new ChartOptions
+    {
+        YAxisTicks = 1,
+        YAxisLines = true,
+        LineStrokeWidth = 3,
+        ChartPalette = new[] { color }
+    };
+
+    private AxisChartOptions GetAxisOptions() => new AxisChartOptions
+    {
+        MatchBoundsToSize = true,
+        XAxisLabelRotation = 0
+    };
 }

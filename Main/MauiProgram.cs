@@ -1,7 +1,7 @@
 ﻿using Main.Bluetooth;
 using Main.Services;
 using Microsoft.Extensions.Logging;
-using MudBlazor.Services; 
+using MudBlazor.Services;
 
 namespace Main
 {
@@ -10,7 +10,7 @@ namespace Main
         public static MauiApp CreateMauiApp()
         {
             var builder = MauiApp.CreateBuilder();
-            
+
             builder
                 .UseMauiApp<App>()
                 .ConfigureFonts(fonts =>
@@ -23,12 +23,18 @@ namespace Main
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
-    		builder.Logging.AddDebug();
+            builder.Logging.AddDebug();
 #endif
 
             builder.Services.AddSingleton<IBluetoothService, BluetoothService>();
+            builder.Services.AddDemeterServices();
 
-            return builder.Build();
+            var app = builder.Build();
+
+            var db = app.Services.GetRequiredService<DatabaseService>();
+            Task.Run(async () => await db.InitializeAsync());
+
+            return app;
         }
     }
 }

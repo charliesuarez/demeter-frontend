@@ -1,8 +1,10 @@
 @page "/crops"
 @using static MudBlazor.Icons
 @using System.Linq
+@using Main.Services
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject DatabaseService Db
 
 <style>
     .crops-header {
@@ -29,14 +31,6 @@
         background-color: #f0fdf4;
     }
 
-    .lettuce-option {
-        transition: all 0.2s ease;
-    }
-
-    .lettuce-option:hover {
-        background-color: #f0fdf4;
-    }
-
     .crop-card {
         transition: all 0.3s ease;
     }
@@ -56,27 +50,8 @@
     }
 
     @@media (max-width: 600px) {
-        .crops-header {
-            padding: 1rem;
-        }
-
-        .crops-header h3 {
-            font-size: 1.3rem;
-        }
-
-        .stat-card .mud-typography-h3 {
-            font-size: 1.5rem !important;
-        }
-
-        .stat-card .mud-typography-body2 {
-            font-size: 0.65rem !important;
-        }
-
-        .stat-card .mud-icon-root {
-            font-size: 1rem !important;
-            width: 1rem !important;
-            height: 1rem !important;
-        }
+        .crops-header { padding: 1rem; }
+        .crops-header h3 { font-size: 1.3rem; }
     }
 </style>
 
@@ -88,7 +63,11 @@
     <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Manage your lettuce batches and track growth progress</p>
 </div>
 
-@* --- PERMANENT STATS ROW --- *@
+<MudButton OnClick="ResetDatabase" Color="Color.Error" Variant="Variant.Outlined" Class="mb-4">
+    Reset Data
+</MudButton>
+
+@* --- STATS ROW --- *@
 <MudGrid Justify="Justify.Center" Class="mb-6">
     <MudItem xs="12" sm="10" md="12" lg="10">
         <MudGrid Spacing="4">
@@ -99,7 +78,7 @@
                             <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Active Crops</MudText>
                             <MudIcon Icon="@Icons.Material.Filled.Grass" Style="color: #11998e;" Size="Size.Large" />
                         </MudStack>
-                        <MudText Typo="Typo.h3" Style="font-weight: 700; color: #1f2937;">@VisibleCrops.Count</MudText>
+                        <MudText Typo="Typo.h3" Style="font-weight: 700; color: #1f2937;">@ActiveCrops.Count(c => c.EndDate == null)</MudText>
                     </MudStack>
                 </MudPaper>
             </MudItem>
@@ -110,7 +89,7 @@
                             <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Crops Harvested</MudText>
                             <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Style="color: #11998e;" Size="Size.Large" />
                         </MudStack>
-                        <MudText Typo="Typo.h3" Style="font-weight: 700; color: #1f2937;">@TotalCropsHarvested</MudText>
+                        <MudText Typo="Typo.h3" Style="font-weight: 700; color: #1f2937;">@AllCrops.Count(c => c.EndDate != null)</MudText>
                     </MudStack>
                 </MudPaper>
             </MudItem>
@@ -121,7 +100,7 @@
                             <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Batches Harvested</MudText>
                             <MudIcon Icon="@Icons.Material.Filled.Inventory" Style="color: #11998e;" Size="Size.Large" />
                         </MudStack>
-                        <MudText Typo="Typo.h3" Style="font-weight: 700; color: #1f2937;">@TotalBatchesHarvested</MudText>
+                        <MudText Typo="Typo.h3" Style="font-weight: 700; color: #1f2937;">@AllBatches.Count(b => b.EndDate != null)</MudText>
                     </MudStack>
                 </MudPaper>
             </MudItem>
@@ -129,68 +108,82 @@
     </MudItem>
 </MudGrid>
 
-@* --- Conditional Form --- *@
-@if (VisibleCrops.Count == 0)
+@* --- START BATCH FORM (only shown when no active crops) --- *@
+@if (ActiveCrops.All(c => c.EndDate != null))
 {
     <MudGrid Justify="Justify.Center" Class="mt-6">
         <MudItem xs="12" lg="10" xl="8">
-            <MudPaper Elevation="2" Class="pa-6" Style="border-radius: 16px; background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);">
+            <MudPaper Elevation="2" Class="pa-6" Style="border-radius: 16px;">
                 <MudStack Spacing="4">
-                    @* Header Section *@
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                         <MudIcon Icon="@Icons.Material.Filled.Spa" Style="color: #11998e;" Size="Size.Large" />
                         <MudStack Spacing="0">
                             <MudText Typo="Typo.h5" Style="font-weight: 600; color: #1f2937;">Start Your Batch</MudText>
-                            <MudText Typo="Typo.body2" Style="color: #6b7280;">Select lettuce types for each slot. You don't need to use all four slots.</MudText>
+                            <MudText Typo="Typo.body2" Style="color: #6b7280;">Select lettuce types for each slot.</MudText>
                         </MudStack>
                     </MudStack>
-
                     <MudDivider />
-
-                    @* Slot Selection *@
                     <MudGrid Spacing="3">
-                        @foreach (var slot in _newBatchSlots)
-                        {
-                            var currentSlot = slot;
-                            var slotIndex = _newBatchSlots.IndexOf(slot);
-                            var slotClass = $"pa-4 slot-card {(string.IsNullOrEmpty(currentSlot.Type) ? "" : "selected")}";
-                            <MudItem xs="12" sm="6">
-                                <MudPaper Elevation="0"
-                                          Outlined="true"
-                                          Class="@slotClass"
-                                          Style="border-radius: 12px; border: 2px solid #e5e7eb;">
-                                    <MudStack Spacing="2">
-                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                                            <MudText Typo="Typo.h6" Style="font-weight: 600; color: #1f2937;">Slot @(slotIndex + 1)</MudText>
-                                            @if (!string.IsNullOrEmpty(currentSlot.Type))
-                                            {
-                                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="color: #11998e;" />
-                                            }
-                                        </MudStack>
-
-                                        <select @bind="currentSlot.Type" class="form-select" style="border-radius: 8px; padding: 10px;">
-                                            <option value="">-- Select Type --</option>
-                                            @foreach (var lettuceType in _lettuceTypes)
-                                            {
-                                                <option value="@lettuceType">@lettuceType (@_lettuceGrowDays[lettuceType] days)</option>
-                                            }
-                                        </select>
-                                    </MudStack>
-                                </MudPaper>
-                            </MudItem>
-                        }
+                        <MudItem xs="12" sm="6">
+                            <MudPaper Elevation="0" Outlined="true" Class="@GetSlotClass(0)" Style="border-radius: 12px; border: 2px solid #e5e7eb;">
+                                <MudStack Spacing="2" Class="pa-4">
+                                    <MudText Typo="Typo.h6" Style="font-weight: 600;">Slot 1</MudText>
+                                    <select @bind="_newBatchSlots[0].Type" class="form-select" style="border-radius: 8px; padding: 10px;">
+                                        <option value="">-- Select Type --</option>
+                                        @foreach (var t in _lettuceTypes)
+                                        {
+                                            <option value="@t">@t (@_lettuceGrowDays[t] days)</option>
+                                        }
+                                    </select>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudPaper Elevation="0" Outlined="true" Class="@GetSlotClass(1)" Style="border-radius: 12px; border: 2px solid #e5e7eb;">
+                                <MudStack Spacing="2" Class="pa-4">
+                                    <MudText Typo="Typo.h6" Style="font-weight: 600;">Slot 2</MudText>
+                                    <select @bind="_newBatchSlots[1].Type" class="form-select" style="border-radius: 8px; padding: 10px;">
+                                        <option value="">-- Select Type --</option>
+                                        @foreach (var t in _lettuceTypes)
+                                        {
+                                            <option value="@t">@t (@_lettuceGrowDays[t] days)</option>
+                                        }
+                                    </select>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudPaper Elevation="0" Outlined="true" Class="@GetSlotClass(2)" Style="border-radius: 12px; border: 2px solid #e5e7eb;">
+                                <MudStack Spacing="2" Class="pa-4">
+                                    <MudText Typo="Typo.h6" Style="font-weight: 600;">Slot 3</MudText>
+                                    <select @bind="_newBatchSlots[2].Type" class="form-select" style="border-radius: 8px; padding: 10px;">
+                                        <option value="">-- Select Type --</option>
+                                        @foreach (var t in _lettuceTypes)
+                                        {
+                                            <option value="@t">@t (@_lettuceGrowDays[t] days)</option>
+                                        }
+                                    </select>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudPaper Elevation="0" Outlined="true" Class="@GetSlotClass(3)" Style="border-radius: 12px; border: 2px solid #e5e7eb;">
+                                <MudStack Spacing="2" Class="pa-4">
+                                    <MudText Typo="Typo.h6" Style="font-weight: 600;">Slot 4</MudText>
+                                    <select @bind="_newBatchSlots[3].Type" class="form-select" style="border-radius: 8px; padding: 10px;">
+                                        <option value="">-- Select Type --</option>
+                                        @foreach (var t in _lettuceTypes)
+                                        {
+                                            <option value="@t">@t (@_lettuceGrowDays[t] days)</option>
+                                        }
+                                    </select>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
                     </MudGrid>
-
-                    @* Action Buttons *@
-                    <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mt-2" Style="flex-wrap: wrap;">
-                        <MudButton Variant="Variant.Text"
-                                   Color="Color.Default"
-                                   OnClick="ClearBatchForm"
-                                   Style="text-transform: none;">
-                            Clear All
-                        </MudButton>
-                        <MudButton Variant="Variant.Filled"
-                                   Color="Color.Success"
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+                        <MudButton Variant="Variant.Text" OnClick="ClearBatchForm" Style="text-transform: none;">Clear All</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Success"
                                    StartIcon="@Icons.Material.Filled.PlayArrow"
                                    OnClick="StartBatch"
                                    Disabled="@(!_newBatchSlots.Any(s => !string.IsNullOrEmpty(s.Type)))"
@@ -204,34 +197,29 @@
     </MudGrid>
 }
 
-@* --- Conditional Crop Display --- *@
-@if (VisibleCrops.Count > 0)
+@* --- ACTIVE CROPS (only shown when there are active crops) --- *@
+@if (ActiveCrops.Any(c => c.EndDate == null))
 {
     <MudGrid Spacing="4" Class="mt-4">
-        @foreach (var crop in VisibleCrops)
+        @foreach (var crop in ActiveCrops.Where(c => c.EndDate == null))
         {
             <MudItem xs="6" sm="6" md="4" lg="3">
                 <MudCard Class="crop-card" Style="border-radius: 12px; overflow: hidden; height: 100%;">
-                    <MudCardMedia Image="@GetImagePath(crop.Type)" Height="160" Style="object-fit: cover;" />
+                    <MudCardMedia Image="@GetImagePath(crop.Type)" Height="160" />
                     <MudCardContent>
                         <MudStack Spacing="2">
-                            <MudText Typo="Typo.h6" Style="font-weight: 600; color: #1f2937;">@crop.Name</MudText>
-
+                            <MudText Typo="Typo.h6" Style="font-weight: 600;">Slot @crop.SlotNumber — @crop.Type</MudText>
                             <MudStack Spacing="1">
                                 <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
                                     <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Style="color: #6b7280;" />
                                     <MudText Typo="Typo.body2" Style="color: #6b7280;">
-                                        <b>@crop.DaysGrowing</b> days growing
+                                        <b>@((DateTime.Now - crop.StartDate).Days)</b> days growing
                                     </MudText>
                                 </MudStack>
-
                                 <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
                                     <MudIcon Icon="@Icons.Material.Filled.DateRange" Size="Size.Small" Style="color: #6b7280;" />
-                                    <MudText Typo="Typo.body2" Style="color: #6b7280;">
-                                        Planted: @crop.StartDate.ToShortDateString()
-                                    </MudText>
+                                    <MudText Typo="Typo.body2" Style="color: #6b7280;">Planted: @crop.StartDate.ToShortDateString()</MudText>
                                 </MudStack>
-
                                 <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
                                     <MudIcon Icon="@Icons.Material.Filled.Agriculture" Size="Size.Small" Style="color: #11998e;" />
                                     <MudText Typo="Typo.body2" Style="color: #11998e; font-weight: 500;">
@@ -239,22 +227,17 @@
                                     </MudText>
                                 </MudStack>
                             </MudStack>
-
-                            @* Progress Bar *@
                             <MudProgressLinear Color="Color.Success"
-                                               Value="@GetGrowthProgress(crop.Type, crop.DaysGrowing)"
+                                               Value="@GetGrowthProgress(crop.Type, crop.StartDate)"
                                                Size="Size.Small"
                                                Style="border-radius: 4px; height: 8px;" />
                             <MudText Typo="Typo.caption" Style="color: #6b7280;" Align="Align.Center">
-                                @GetGrowthProgress(crop.Type, crop.DaysGrowing).ToString("F0")% Complete
+                                @GetGrowthProgress(crop.Type, crop.StartDate).ToString("F0")% Complete
                             </MudText>
                         </MudStack>
                     </MudCardContent>
-
                     <MudCardActions Class="pa-4">
-                        <MudButton Variant="Variant.Filled"
-                                   Color="Color.Success"
-                                   FullWidth="true"
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
                                    StartIcon="@Icons.Material.Filled.Agriculture"
                                    OnClick="() => ShowHarvestConfirmation(crop)"
                                    Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; text-transform: none; border-radius: 8px;">
@@ -267,16 +250,14 @@
     </MudGrid>
 }
 
-
 @code {
     private List<Crop> ActiveCrops = new();
-    private List<Crop> VisibleCrops => ActiveCrops.Where(c => c.EndTime == null).ToList();
-    private int TotalCropsHarvested => ActiveCrops.Count(c => c.EndTime != null);
-    private int TotalBatchesHarvested = 0;
+    private List<Crop> AllCrops = new();
+    private List<Batch> AllBatches = new();
+    private Batch? CurrentBatch;
 
     private List<NewBatchSlot> _newBatchSlots = new();
     private List<string> _lettuceTypes = new() { "Romaine Lettuce", "Butterhead Lettuce", "Iceberg Lettuce", "Looseleaf Lettuce" };
-
     private Dictionary<string, int> _lettuceGrowDays = new()
     {
         { "Romaine Lettuce", 50 },
@@ -290,77 +271,54 @@
         public string? Type { get; set; } = null;
     }
 
-    private class Crop
-    {
-        public string Name { get; set; } = "";
-        public string Type { get; set; } = "";
-        public DateTime StartDate { get; set; }
-        public int DaysGrowing => (DateTime.Now - StartDate).Days;
-        public DateTime? EndTime { get; set; } = null;
-    }
-
-    private double GetGrowthProgress(string type, int daysGrowing)
-    {
-        if (_lettuceGrowDays.TryGetValue(type, out int totalDays))
-        {
-            return Math.Min((daysGrowing / (double)totalDays) * 100, 100);
-        }
-        return 0;
-    }
-
-    private string GetHarvestDate(string type, DateTime startDate)
-    {
-        if (_lettuceGrowDays.TryGetValue(type, out int days))
-        {
-            return startDate.AddDays(days).ToShortDateString();
-        }
-        return "N/A";
-    }
-
-    private string GetImagePath(string lettuceType)
-    {
-        switch (lettuceType)
-        {
-            case "Romaine Lettuce": return "images/romaine.jpg";
-            case "Butterhead Lettuce": return "images/butterhead.jpg";
-            case "Iceberg Lettuce": return "images/iceberg.jpg";
-            case "Looseleaf Lettuce": return "images/looseleaf.jpg";
-            default: return "dotnet_bot.svg";
-        }
-    }
-
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _newBatchSlots = new List<NewBatchSlot>
         {
-            new NewBatchSlot(),
-            new NewBatchSlot(),
-            new NewBatchSlot(),
-            new NewBatchSlot()
+            new NewBatchSlot(), new NewBatchSlot(),
+            new NewBatchSlot(), new NewBatchSlot()
         };
+        await LoadDataAsync();
     }
 
-    private async Task ClearBatchForm()
+    private async Task LoadDataAsync()
     {
-        _newBatchSlots = new List<NewBatchSlot>
-        {
-            new NewBatchSlot(), new NewBatchSlot(), new NewBatchSlot(), new NewBatchSlot()
-        };
-        await InvokeAsync(StateHasChanged);
+        AllBatches = await Db.GetAllBatchesAsync();
+        AllCrops = await Db.GetAllCropsAsync();
+        CurrentBatch = await Db.GetActiveBatchAsync();
+        ActiveCrops = CurrentBatch != null
+            ? await Db.GetCropsByBatchAsync(CurrentBatch.Id)
+            : new List<Crop>();
     }
 
-    private async Task HarvestCrop(Crop cropToHarvest)
+    private async Task StartBatch()
     {
-        var crop = ActiveCrops.FirstOrDefault(c => c.Name == cropToHarvest.Name && c.StartDate == cropToHarvest.StartDate);
-        if (crop != null)
-        {
-            crop.EndTime = DateTime.Now;
+        var selectedSlots = _newBatchSlots
+            .Select((slot, index) => new { slot, index })
+            .Where(x => !string.IsNullOrEmpty(x.slot.Type))
+            .ToList();
 
-            if (VisibleCrops.Count == 0)
+        if (selectedSlots.Any())
+        {
+            var batch = await Db.CreateBatchAsync();
+            foreach (var item in selectedSlots)
             {
-                TotalBatchesHarvested++;
+                await Db.CreateCropAsync(batch.Id, item.index + 1, item.slot.Type!);
             }
+            await LoadDataAsync();
+            await ClearBatchForm();
         }
+    }
+
+    private async Task HarvestCrop(Crop crop)
+    {
+        await Db.HarvestCropAsync(crop.Id);
+        var remaining = ActiveCrops.Count(c => c.EndDate == null && c.Id != crop.Id);
+        if (remaining == 0 && CurrentBatch != null)
+        {
+            await Db.EndBatchAsync(CurrentBatch.Id);
+        }
+        await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
     }
 
@@ -368,41 +326,59 @@
     {
         var result = await DialogService.ShowMessageBox(
             "Confirm Harvest",
-            $"Are you sure you want to harvest {crop.Name}? This action cannot be undone.",
-            yesText: "Harvest",
-            cancelText: "Cancel"
+            $"Are you sure you want to harvest Slot {crop.SlotNumber} ({crop.Type})?",
+            yesText: "Harvest", cancelText: "Cancel"
         );
-
         if (result == true)
         {
             await HarvestCrop(crop);
-            Snackbar.Add($"{crop.Name} has been harvested.", Severity.Success);
+            Snackbar.Add($"Slot {crop.SlotNumber} harvested!", Severity.Success);
         }
     }
 
-    private async Task StartBatch()
+    private async Task ClearBatchForm()
     {
-        var newCrops = _newBatchSlots
-            .Where(slot => !string.IsNullOrEmpty(slot.Type))
-            .ToList();
-
-        if (newCrops.Any())
+        _newBatchSlots = new List<NewBatchSlot>
         {
-            var typeCounts = new Dictionary<string, char>();
-            foreach (var slot in newCrops)
-            {
-                if (!typeCounts.TryGetValue(slot.Type!, out var letter)) { letter = 'A'; }
+            new NewBatchSlot(), new NewBatchSlot(),
+            new NewBatchSlot(), new NewBatchSlot()
+        };
+        await InvokeAsync(StateHasChanged);
+    }
 
-                ActiveCrops.Add(new Crop
-                {
-                    Type = slot.Type!,
-                    Name = $"{slot.Type} {letter}",
-                    StartDate = DateTime.Now,
-                    EndTime = null
-                });
-                typeCounts[slot.Type!] = (char)(letter + 1);
-            }
-        }
-        await ClearBatchForm();
+    private double GetGrowthProgress(string type, DateTime startDate)
+    {
+        int days = (DateTime.Now - startDate).Days;
+        if (_lettuceGrowDays.TryGetValue(type, out int totalDays))
+            return Math.Min((days / (double)totalDays) * 100, 100);
+        return 0;
+    }
+
+    private string GetHarvestDate(string type, DateTime startDate)
+    {
+        if (_lettuceGrowDays.TryGetValue(type, out int days))
+            return startDate.AddDays(days).ToShortDateString();
+        return "N/A";
+    }
+
+    private string GetImagePath(string lettuceType) => lettuceType switch
+    {
+        "Romaine Lettuce" => "images/romaine.jpg",
+        "Butterhead Lettuce" => "images/butterhead.jpg",
+        "Iceberg Lettuce" => "images/iceberg.jpg",
+        "Looseleaf Lettuce" => "images/looseleaf.jpg",
+        _ => "dotnet_bot.svg"
+    };
+
+    private string GetSlotClass(int index)
+    {
+        return "pa-4 slot-card " + (string.IsNullOrEmpty(_newBatchSlots[index].Type) ? "" : "selected");
+    }
+
+    private async Task ResetDatabase()
+    {
+        await Db.ResetAsync();
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
     }
 }

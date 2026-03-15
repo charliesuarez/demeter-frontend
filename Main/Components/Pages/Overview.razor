@@ -1,7 +1,9 @@
 ﻿@page "/"
 @using Main.Bluetooth
+@using Main.Services
 @using static MudBlazor.Icons
 @inject IBluetoothService Bluetooth
+@inject DatabaseService Db
 @implements IDisposable
 
 <style>
@@ -19,11 +21,11 @@
         border: 2px solid #e5e7eb !important;
     }
 
-        .stat-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 16px rgba(17, 153, 142, 0.2);
-            border-color: #11998e !important;
-        }
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(17, 153, 142, 0.2);
+        border-color: #11998e !important;
+    }
 
     .metric-card {
         transition: all 0.3s ease;
@@ -31,19 +33,41 @@
         background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%) !important;
     }
 
-        .metric-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(17, 153, 142, 0.15);
-        }
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(17, 153, 142, 0.15);
+    }
+
+    .metric-card-warning {
+        transition: all 0.3s ease;
+        border: 2px solid #fbbf24 !important;
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+    }
+
+    .metric-card-warning:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(251, 191, 36, 0.2);
+    }
+
+    .metric-card-critical {
+        transition: all 0.3s ease;
+        border: 2px solid #ef4444 !important;
+        background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%) !important;
+    }
+
+    .metric-card-critical:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(239, 68, 68, 0.2);
+    }
 
     .alert-card {
         transition: all 0.3s ease;
     }
 
-        .alert-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
+    .alert-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
 
     .status-indicator {
         width: 12px;
@@ -66,7 +90,6 @@
             opacity: 1;
             box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
         }
-
         50% {
             opacity: 0.8;
             box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
@@ -93,33 +116,38 @@
         font-weight: 600;
         font-size: 0.85rem;
     }
-    
-    @@media (max-width: 600px) {
-        .overview-header {
-            padding: 1rem;
-        }
 
-        .overview-header h3 {
-            font-size: 1.3rem;
-        }
-
-        .metric-card {
-            padding: 8px !important;
-        }
-
-        .metric-card .mud-typography-body2 {
-            font-size: 0.65rem !important;
-        }
-
-        .metric-card .mud-typography-h5 {
-            font-size: 1rem !important;
-        }
-
-        .metric-card > .mud-paper-outlined {
-            padding: 8px !important;
-        }
+    .alert-item {
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
     }
 
+    .alert-warning {
+        background-color: #fffbeb;
+        border-left: 4px solid #f59e0b;
+    }
+
+    .alert-critical {
+        background-color: #fef2f2;
+        border-left: 4px solid #ef4444;
+    }
+
+    .alert-timestamp {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        margin-top: 0.2rem;
+    }
+
+    @@media (max-width: 600px) {
+        .overview-header { padding: 1rem; }
+        .overview-header h3 { font-size: 1.3rem; }
+        .metric-card { padding: 8px !important; }
+    }
 </style>
 
 <div class="overview-header">
@@ -144,52 +172,47 @@
     </MudStack>
 </div>
 
-@* --- CROP STATS --- *@
+<MudButton OnClick="SimulateReading" Color="Color.Warning" Variant="Variant.Outlined" Class="mb-4">
+    Simulate Bad Reading (Test)
+</MudButton>
+
+@* --- STAT CARDS --- *@
+@{
+    var alertIconColor = _alerts.Any(a => a.IsCritical) ? "#ef4444" : _alerts.Any() ? "#f59e0b" : "#11998e";
+}
 <MudGrid Spacing="4" Class="mb-6">
-    <MudItem xs="6" sm="6" md="3">
+    <MudItem xs="6" sm="6" md="4">
         <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px;">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <MudStack Spacing="1">
-                    <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Total Crops</MudText>
-                    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">4</MudText>
+                    <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Active Crops</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">@_activeCropCount</MudText>
                 </MudStack>
                 <MudIcon Icon="@Icons.Material.Filled.Grass" Style="color: #11998e;" Size="Size.Large" />
             </MudStack>
         </MudPaper>
     </MudItem>
 
-    <MudItem xs="6" sm="6" md="3">
+    <MudItem xs="6" sm="6" md="4">
         <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px;">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <MudStack Spacing="1">
-                    <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Healthy Crops</MudText>
-                    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">4</MudText>
+                    <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Days Until Harvest</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">@_daysUntilHarvest</MudText>
                 </MudStack>
-                <MudIcon Icon="@Icons.Material.Filled.Favorite" Style="color: #11998e;" Size="Size.Large" />
+                <MudIcon Icon="@Icons.Material.Filled.Agriculture" Style="color: #11998e;" Size="Size.Large" />
             </MudStack>
         </MudPaper>
     </MudItem>
 
-    <MudItem xs="6" sm="6" md="3">
-        <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px;">
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                <MudStack Spacing="1">
-                    <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Average Health</MudText>
-                    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">95%</MudText>
-                </MudStack>
-                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Style="color: #11998e;" Size="Size.Large" />
-            </MudStack>
-        </MudPaper>
-    </MudItem>
-
-    <MudItem xs="6" sm="6" md="3">
+    <MudItem xs="6" sm="6" md="4">
         <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px;">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <MudStack Spacing="1">
                     <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Active Alerts</MudText>
                     <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">@_alerts.Count</MudText>
                 </MudStack>
-                <MudIcon Icon="@Icons.Material.Filled.Report" Style="color: #11998e;" Size="Size.Large" />
+                <MudIcon Icon="@Icons.Material.Filled.Report" Style="@("color: " + alertIconColor + ";")" Size="Size.Large" />
             </MudStack>
         </MudPaper>
     </MudItem>
@@ -197,7 +220,8 @@
 
 @* --- MAIN + SIDEBAR LAYOUT --- *@
 <MudGrid Spacing="4">
-    @* --- MAIN CONTENT (Metrics) --- *@
+
+    @* --- METRICS --- *@
     <MudItem xs="12" md="8">
         <MudPaper Elevation="2" Class="pa-3 pa-sm-5" Style="border-radius: 12px;">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
@@ -218,10 +242,18 @@
                 }
             </MudStack>
 
+            @{
+                var phClass = "pa-3 " + GetMetricClass("ph");
+                var waterTempClass = "pa-3 " + GetMetricClass("watertemp");
+                var waterLevelClass = "pa-3 " + GetMetricClass("waterlevel");
+                var doClass = "pa-3 " + GetMetricClass("do");
+                var lightClass = "pa-3 " + GetMetricClass("light");
+                var tdsClass = "pa-3 " + GetMetricClass("tds");
+            }
+
             <MudGrid Spacing="3">
-                @* Row 1 *@
                 <MudItem xs="6" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
+                    <MudPaper Elevation="0" Outlined="true" Class="@phClass" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
                             <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.InvertColors" Style="color: white;" Size="Size.Large" />
@@ -235,7 +267,7 @@
                 </MudItem>
 
                 <MudItem xs="6" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
+                    <MudPaper Elevation="0" Outlined="true" Class="@waterTempClass" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
                             <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.Thermostat" Style="color: white;" Size="Size.Large" />
@@ -248,23 +280,22 @@
                     </MudPaper>
                 </MudItem>
 
-                @* Row 2 *@
                 <MudItem xs="6" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
+                    <MudPaper Elevation="0" Outlined="true" Class="@waterLevelClass" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
                             <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.Water" Style="color: white;" Size="Size.Large" />
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
                                 <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Water Level</MudText>
-                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(_sensorData?.WaterLevel, "F1", " cm")</MudText>
+                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(_sensorData?.WaterLevel, "F1", "%")</MudText>
                             </MudStack>
                         </MudStack>
                     </MudPaper>
                 </MudItem>
 
                 <MudItem xs="6" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
+                    <MudPaper Elevation="0" Outlined="true" Class="@doClass" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
                             <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.Air" Style="color: white;" Size="Size.Large" />
@@ -277,9 +308,8 @@
                     </MudPaper>
                 </MudItem>
 
-                @* Row 3 *@
                 <MudItem xs="6" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
+                    <MudPaper Elevation="0" Outlined="true" Class="@lightClass" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
                             <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.WbSunny" Style="color: white;" Size="Size.Large" />
@@ -293,7 +323,7 @@
                 </MudItem>
 
                 <MudItem xs="6" sm="6">
-                    <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
+                    <MudPaper Elevation="0" Outlined="true" Class="@tdsClass" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
                             <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); padding: 8px; border-radius: 12px;">
                                 <MudIcon Icon="@Icons.Material.Filled.Bolt" Style="color: white;" Size="Size.Large" />
@@ -309,16 +339,20 @@
         </MudPaper>
     </MudItem>
 
-    @* --- SIDEBAR (Status + Controls) --- *@
+    @* --- SIDEBAR --- *@
     <MudItem xs="12" md="4">
-        @* Connection Status Card *@
+
+        @* Connection Card *@
         <MudPaper Elevation="2" Class="pa-4 mb-4 alert-card" Style="border-radius: 12px;">
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
                 <MudIcon Icon="@Icons.Material.Filled.Bluetooth" Style="color: #11998e;" Size="Size.Medium" />
                 <MudText Typo="Typo.h6" Style="font-weight: 600; color: #1f2937;">Connection</MudText>
             </MudStack>
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2"
-                      Style="@($"padding: 1rem; background: {(_isConnected ? "linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%)" : "#fef2f2")}; border-radius: 8px;")">
+            @{
+                var connBg = _isConnected ? "linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%)" : "#fef2f2";
+                var connStyle = "padding: 1rem; background: " + connBg + "; border-radius: 8px;";
+            }
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Style="@connStyle">
                 <div class="status-indicator @(_isConnected ? "status-connected" : "status-disconnected")"></div>
                 @if (_isConnected)
                 {
@@ -334,11 +368,7 @@
             </MudStack>
             @if (_isConnected)
             {
-                <MudButton Variant="Variant.Text"
-                           Color="Color.Error"
-                           FullWidth="true"
-                           Class="mt-3"
-                           OnClick="DisconnectAsync">
+                <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true" Class="mt-3" OnClick="DisconnectAsync">
                     Disconnect
                 </MudButton>
             }
@@ -381,21 +411,37 @@
                 <MudIcon Icon="@Icons.Material.Filled.Notifications" Style="color: #11998e;" Size="Size.Medium" />
                 <MudText Typo="Typo.h6" Style="font-weight: 600; color: #1f2937;">Alerts</MudText>
             </MudStack>
-            <MudStack Spacing="2">
-                @if (_alerts.Count == 0)
+
+            @if (!_alerts.Any())
+            {
+                <MudText Typo="Typo.body2" Style="color: #6b7280;">No active alerts</MudText>
+            }
+            else
+            {
+                @foreach (var alert in _alerts.OrderByDescending(a => a.IsCritical))
                 {
-                    <MudText Typo="Typo.body2" Style="color: #6b7280;">No active alerts</MudText>
+                    var alertClass = "alert-item " + (alert.IsCritical ? "alert-critical" : "alert-warning");
+                    var alertIconStyle = "color: " + (alert.IsCritical ? "#ef4444" : "#f59e0b") + ";";
+                    var alertIcon = alert.IsCritical ? Icons.Material.Filled.Error : Icons.Material.Filled.Warning;
+                    <div class="@alertClass">
+                        <MudStack Row="false" Spacing="0" Style="flex: 1;">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                <MudIcon Icon="@alertIcon" Style="@alertIconStyle" Size="Size.Small" />
+                                <MudText Style="font-weight: 500; color: #1f2937; font-size: 0.85rem;">@alert.Message</MudText>
+                            </MudStack>
+                            <div class="alert-timestamp">@alert.Timestamp.ToString("hh:mm tt")</div>
+                        </MudStack>
+                        <MudIconButton Icon="@Icons.Material.Filled.Close"
+                                       Size="Size.Small"
+                                       Style="color: #9ca3af; padding: 2px;"
+                                       OnClick="() => DismissAlert(alert)" />
+                    </div>
                 }
-                @foreach (var alert in _alerts)
-                {
-                    <MudAlert Severity="@alert.Severity"
-                              Variant="Variant.Filled"
-                              Style="border-radius: 8px;"
-                              CloseIconClicked="() => _alerts.Remove(alert)">
-                        @alert.Message
-                    </MudAlert>
-                }
-            </MudStack>
+            }
+
+            <MudText Typo="Typo.caption" Style="color: #9ca3af; margin-top: 0.75rem; display: block;">
+                Alerts refresh with each new sensor reading
+            </MudText>
         </MudPaper>
     </MudItem>
 </MudGrid>
@@ -449,36 +495,136 @@
 </MudDialog>
 
 @code {
+
+    private class LiveAlert
+    {
+        public string Sensor { get; set; } = "";
+        public string Message { get; set; } = "";
+        public bool IsCritical { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+
+    private static class Thresholds
+    {
+        public const double PhWarnLow = 5.8, PhWarnHigh = 6.2;
+        public const double PhCritLow = 5.5, PhCritHigh = 6.5;
+        public const double WaterTempWarnLow = 19, WaterTempWarnHigh = 23;
+        public const double WaterTempCritLow = 18, WaterTempCritHigh = 24;
+        public const double AirTempWarnLow = 17, AirTempWarnHigh = 25;
+        public const double AirTempCritLow = 16, AirTempCritHigh = 26;
+        public const double HumidityWarnLow = 55, HumidityWarnHigh = 65;
+        public const double HumidityCritLow = 50, HumidityCritHigh = 70;
+        public const double TdsWarnLow = 500, TdsWarnHigh = 700;
+        public const double TdsCritLow = 400, TdsCritHigh = 800;
+        public const double DoWarnLow = 7;
+        public const double DoCritLow = 6;
+        public const double WaterLevelWarnLow = 30;
+        public const double WaterLevelCritLow = 20;
+        public const double LightWarnLow = 2500, LightWarnHigh = 3500;
+        public const double LightCritLow = 2000, LightCritHigh = 4000;
+    }
+
     private bool _isConnected;
     private bool _isScanning;
     private bool _showConnectionDialog;
     private SensorData? _sensorData;
     private List<BleDevice> _discoveredDevices = new();
-    private List<AlertItem> _alerts = new();
-    private string _macAddress;
+    private List<LiveAlert> _alerts = new();
+    private HashSet<string> _dismissedSensors = new();
 
     private bool _waterPumpOn;
     private bool _airPumpOn;
     private int _doseDuration = 1000;
 
+    private int _activeCropCount = 0;
+    private string _daysUntilHarvest = "--";
+
+    private static readonly Dictionary<string, int> LettuceGrowDays = new()
+    {
+        { "Romaine Lettuce", 50 },
+        { "Butterhead Lettuce", 45 },
+        { "Iceberg Lettuce", 55 },
+        { "Looseleaf Lettuce", 40 }
+    };
+
     private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
 
     protected override async Task OnInitializedAsync()
     {
-        // Subscribe to Bluetooth events
         Bluetooth.SensorDataReceived += OnSensorDataReceived;
         Bluetooth.ConnectionChanged += OnConnectionChanged;
         Bluetooth.DeviceDiscovered += OnDeviceDiscovered;
         Bluetooth.ErrorOccurred += OnError;
 
-        // Initialize Bluetooth
         await Bluetooth.InitializeAsync();
+        await LoadStatsAsync();
+    }
+
+    private async Task LoadStatsAsync()
+    {
+        var activeBatch = await Db.GetActiveBatchAsync();
+        if (activeBatch != null)
+        {
+            var crops = await Db.GetCropsByBatchAsync(activeBatch.Id);
+            var activeCrops = crops.Where(c => c.EndDate == null).ToList();
+            _activeCropCount = activeCrops.Count;
+
+            if (activeCrops.Any())
+            {
+                var earliest = activeCrops
+                    .Where(c => LettuceGrowDays.ContainsKey(c.Type))
+                    .Select(c => c.StartDate.AddDays(LettuceGrowDays[c.Type]))
+                    .OrderBy(d => d)
+                    .FirstOrDefault();
+
+                if (earliest != default)
+                {
+                    var days = (earliest - DateTime.Now).Days;
+                    _daysUntilHarvest = days > 0 ? days.ToString() : "Ready!";
+                }
+            }
+        }
+        else
+        {
+            _activeCropCount = 0;
+            _daysUntilHarvest = "--";
+        }
     }
 
     private void OnSensorDataReceived(SensorData data)
     {
         _sensorData = data;
+        _dismissedSensors.Clear();
+        BuildAlerts(data);
+        SaveReadingToDatabase(data);
         InvokeAsync(StateHasChanged);
+    }
+
+    private void SaveReadingToDatabase(SensorData data)
+    {
+        _ = Task.Run(async () =>
+        {
+            var activeBatch = await Db.GetActiveBatchAsync();
+            if (activeBatch == null) return;
+
+            var reading = new SensorReading
+            {
+                BatchId = activeBatch.Id,
+                Timestamp = DateTime.Now,
+                Ph = data.Ph ?? 0,
+                WaterTemp = data.WaterTemp ?? 0,
+                AirTemp = data.AirTemp ?? 0,
+                Humidity = data.Humidity ?? 0,
+                Tds = data.Tds ?? 0,
+                Ec = data.Tds ?? 0,
+                WaterLevel = data.WaterLevel ?? 0,
+                ReservoirLevel = data.WaterLevel ?? 0,
+                LightIntensity = data.Light ?? 0,
+                DissolvedOxygen = data.DissolvedOxygen ?? 0
+            };
+
+            await Db.SaveReadingAsync(reading);
+        });
     }
 
     private void OnConnectionChanged(bool connected)
@@ -491,6 +637,7 @@
             _sensorData = null;
             _waterPumpOn = false;
             _airPumpOn = false;
+            _alerts.Clear();
         }
 
         InvokeAsync(StateHasChanged);
@@ -507,8 +654,106 @@
 
     private void OnError(string message)
     {
-        _alerts.Add(new AlertItem(Severity.Error, message));
+        _alerts.Add(new LiveAlert
+        {
+            Sensor = "system",
+            Message = message,
+            IsCritical = true,
+            Timestamp = DateTime.Now
+        });
         InvokeAsync(StateHasChanged);
+    }
+
+    private void BuildAlerts(SensorData data)
+    {
+        _alerts.Clear();
+
+        void Check(string sensor, double? value, double warnLow, double warnHigh, double critLow, double critHigh, string warnMsg, string critMsg)
+        {
+            if (value == null || _dismissedSensors.Contains(sensor)) return;
+            if (value < critLow || value > critHigh)
+                _alerts.Add(new LiveAlert { Sensor = sensor, Message = critMsg, IsCritical = true, Timestamp = DateTime.Now });
+            else if (value < warnLow || value > warnHigh)
+                _alerts.Add(new LiveAlert { Sensor = sensor, Message = warnMsg, IsCritical = false, Timestamp = DateTime.Now });
+        }
+
+        void CheckLow(string sensor, double? value, double warnLow, double critLow, string warnMsg, string critMsg)
+        {
+            if (value == null || _dismissedSensors.Contains(sensor)) return;
+            if (value < critLow)
+                _alerts.Add(new LiveAlert { Sensor = sensor, Message = critMsg, IsCritical = true, Timestamp = DateTime.Now });
+            else if (value < warnLow)
+                _alerts.Add(new LiveAlert { Sensor = sensor, Message = warnMsg, IsCritical = false, Timestamp = DateTime.Now });
+        }
+
+        Check("ph", data.Ph, Thresholds.PhWarnLow, Thresholds.PhWarnHigh, Thresholds.PhCritLow, Thresholds.PhCritHigh,
+            $"pH is slightly off at {data.Ph:F1} — optimal range is 5.8–6.2",
+            $"pH is critically off at {data.Ph:F1} — immediate adjustment needed");
+
+        Check("watertemp", data.WaterTemp, Thresholds.WaterTempWarnLow, Thresholds.WaterTempWarnHigh, Thresholds.WaterTempCritLow, Thresholds.WaterTempCritHigh,
+            $"Water temperature is {data.WaterTemp:F1}°C — slightly outside optimal range",
+            $"Water temperature is critically {(data.WaterTemp < Thresholds.WaterTempCritLow ? "low" : "high")} at {data.WaterTemp:F1}°C");
+
+        Check("airtemp", data.AirTemp, Thresholds.AirTempWarnLow, Thresholds.AirTempWarnHigh, Thresholds.AirTempCritLow, Thresholds.AirTempCritHigh,
+            $"Air temperature is {data.AirTemp:F1}°C — slightly outside optimal range",
+            $"Air temperature is critically {(data.AirTemp < Thresholds.AirTempCritLow ? "low" : "high")} at {data.AirTemp:F1}°C");
+
+        Check("humidity", data.Humidity, Thresholds.HumidityWarnLow, Thresholds.HumidityWarnHigh, Thresholds.HumidityCritLow, Thresholds.HumidityCritHigh,
+            $"Humidity is {data.Humidity:F0}% — slightly outside optimal range",
+            $"Humidity is critically {(data.Humidity < Thresholds.HumidityCritLow ? "low" : "high")} at {data.Humidity:F0}%");
+
+        Check("tds", data.Tds, Thresholds.TdsWarnLow, Thresholds.TdsWarnHigh, Thresholds.TdsCritLow, Thresholds.TdsCritHigh,
+            $"Nutrient concentration is {data.Tds:F0} PPM — slightly outside optimal range",
+            $"Nutrient concentration is critically {(data.Tds < Thresholds.TdsCritLow ? "low" : "high")} at {data.Tds:F0} PPM");
+
+        CheckLow("do", data.DissolvedOxygen, Thresholds.DoWarnLow, Thresholds.DoCritLow,
+            $"Dissolved oxygen is low at {data.DissolvedOxygen:F1} mg/L — check air pump",
+            $"Dissolved oxygen is critically low at {data.DissolvedOxygen:F1} mg/L — plants may suffocate");
+
+        CheckLow("waterlevel", data.WaterLevel, Thresholds.WaterLevelWarnLow, Thresholds.WaterLevelCritLow,
+            $"Water level is low at {data.WaterLevel:F0}% — consider refilling soon",
+            $"Water level is critically low at {data.WaterLevel:F0}% — refill immediately");
+
+        Check("light", data.Light, Thresholds.LightWarnLow, Thresholds.LightWarnHigh, Thresholds.LightCritLow, Thresholds.LightCritHigh,
+            $"Light intensity is {data.Light:F0} lux — slightly outside optimal range",
+            $"Light intensity is critically {(data.Light < Thresholds.LightCritLow ? "low" : "high")} at {data.Light:F0} lux — check grow lights");
+    }
+
+    private void DismissAlert(LiveAlert alert)
+    {
+        _dismissedSensors.Add(alert.Sensor);
+        _alerts.Remove(alert);
+    }
+
+    private string GetMetricClass(string sensor)
+    {
+        if (_sensorData == null) return "metric-card";
+
+        bool isCritical = sensor switch
+        {
+            "ph" => _sensorData.Ph < Thresholds.PhCritLow || _sensorData.Ph > Thresholds.PhCritHigh,
+            "watertemp" => _sensorData.WaterTemp < Thresholds.WaterTempCritLow || _sensorData.WaterTemp > Thresholds.WaterTempCritHigh,
+            "waterlevel" => _sensorData.WaterLevel < Thresholds.WaterLevelCritLow,
+            "do" => _sensorData.DissolvedOxygen < Thresholds.DoCritLow,
+            "light" => _sensorData.Light < Thresholds.LightCritLow || _sensorData.Light > Thresholds.LightCritHigh,
+            "tds" => _sensorData.Tds < Thresholds.TdsCritLow || _sensorData.Tds > Thresholds.TdsCritHigh,
+            _ => false
+        };
+
+        bool isWarning = sensor switch
+        {
+            "ph" => _sensorData.Ph < Thresholds.PhWarnLow || _sensorData.Ph > Thresholds.PhWarnHigh,
+            "watertemp" => _sensorData.WaterTemp < Thresholds.WaterTempWarnLow || _sensorData.WaterTemp > Thresholds.WaterTempWarnHigh,
+            "waterlevel" => _sensorData.WaterLevel < Thresholds.WaterLevelWarnLow,
+            "do" => _sensorData.DissolvedOxygen < Thresholds.DoWarnLow,
+            "light" => _sensorData.Light < Thresholds.LightWarnLow || _sensorData.Light > Thresholds.LightWarnHigh,
+            "tds" => _sensorData.Tds < Thresholds.TdsWarnLow || _sensorData.Tds > Thresholds.TdsWarnHigh,
+            _ => false
+        };
+
+        if (isCritical) return "metric-card-critical";
+        if (isWarning) return "metric-card-warning";
+        return "metric-card";
     }
 
     private void ShowConnectionDialog()
@@ -522,9 +767,7 @@
         _isScanning = true;
         _discoveredDevices.Clear();
         StateHasChanged();
-
         await Bluetooth.StartScanAsync(timeoutSeconds: 10);
-
         _isScanning = false;
         StateHasChanged();
     }
@@ -538,37 +781,30 @@
         }
         catch (Exception ex)
         {
-            _alerts.Add(new AlertItem(Severity.Error, $"Connection failed: {ex.Message}"));
+            _alerts.Add(new LiveAlert { Sensor = "system", Message = $"Connection failed: {ex.Message}", IsCritical = true, Timestamp = DateTime.Now });
         }
     }
 
-    private async Task DisconnectAsync()
-    {
-        await Bluetooth.DisconnectAsync();
-    }
+    private async Task DisconnectAsync() => await Bluetooth.DisconnectAsync();
 
     private async Task OnWaterPumpToggle(bool value)
     {
-        if (await Bluetooth.SetWaterPumpAsync(value))
-            _waterPumpOn = value;
+        if (await Bluetooth.SetWaterPumpAsync(value)) _waterPumpOn = value;
     }
 
     private async Task OnAirPumpToggle(bool value)
     {
-        if (await Bluetooth.SetAirPumpAsync(value))
-            _airPumpOn = value;
+        if (await Bluetooth.SetAirPumpAsync(value)) _airPumpOn = value;
     }
 
     private async Task DoseNutrientsAsync()
     {
         if (await Bluetooth.DoseNutrientsAsync(_doseDuration))
-            _alerts.Add(new AlertItem(Severity.Info, $"Nutrient dosing started ({_doseDuration}ms)"));
+            _alerts.Add(new LiveAlert { Sensor = "system", Message = $"Nutrient dosing started ({_doseDuration}ms)", IsCritical = false, Timestamp = DateTime.Now });
     }
 
     private string FormatValue(double? value, string format, string suffix = "")
-    {
-        return value.HasValue ? $"{value.Value.ToString(format)}{suffix}" : "--";
-    }
+        => value.HasValue ? $"{value.Value.ToString(format)}{suffix}" : "--";
 
     private string GetSignalStrength(int rssi) => rssi switch
     {
@@ -586,5 +822,23 @@
         Bluetooth.ErrorOccurred -= OnError;
     }
 
-    private record AlertItem(Severity Severity, string Message);
+    private void SimulateReading()
+    {
+        var testData = new SensorData
+        {
+            Ph = 6.0,        // ✅ Normal (5.8–6.2)
+            WaterTemp = 23.8, // ⚠️ Warning (above 23)
+            WaterLevel = 25,  // ⚠️ Warning (below 30)
+            DissolvedOxygen = 5.5, // 🔴 Critical (below 6)
+            Light = 3100,    // ✅ Normal (2500–3500)
+            Tds = 480,       // ⚠️ Warning (below 500)
+            AirTemp = 21,    // ✅ Normal
+            Humidity = 60    // ✅ Normal
+        };
+
+        _sensorData = testData;
+        _dismissedSensors.Clear();
+        BuildAlerts(testData);
+        StateHasChanged();
+    }
 }
