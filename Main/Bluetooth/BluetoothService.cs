@@ -203,17 +203,21 @@ public class BluetoothService : IBluetoothService
             System.Diagnostics.Debug.WriteLine($"  Characteristic: {ch.Id}, Properties: {ch.Properties}");
         }
 
-        _dataChar = await service.GetCharacteristicAsync(DataCharUuid);
-        _commandChar = await service.GetCharacteristicAsync(CommandCharUuid);
+		_dataChar = await service.GetCharacteristicAsync(DataCharUuid);
+		if (_dataChar == null) throw new Exception("Data characteristic not found");
 
-        if (_dataChar == null) throw new Exception("Data characteristic not found");
-        if (_commandChar == null) throw new Exception("Command characteristic not found");
+		// Command char is OPTIONAL for now (firmware doesn't have FF02 yet)
+		_commandChar = await service.GetCharacteristicAsync(CommandCharUuid);
+		if (_commandChar == null)
+		{
+			System.Diagnostics.Debug.WriteLine("Command characteristic (FF02) not found. Commands disabled for now.");
+		}
 
-        // Subscribe to notifications
-        _dataChar.ValueUpdated += OnDataReceived;
+		// Subscribe to notifications commented this out for now aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+		_dataChar.ValueUpdated += OnDataReceived;
         await _dataChar.StartUpdatesAsync();
 
-        System.Diagnostics.Debug.WriteLine("Subscribed to sensor data notifications");
+        System.Diagnostics.Debug.WriteLine("Connected + service/ff01 found. ");
         ConnectionChanged?.Invoke(true);
     }
 
@@ -268,45 +272,48 @@ public class BluetoothService : IBluetoothService
         }
     }
 
-    /// <summary>
-    /// Parses ESP32 sensor data.
-    /// Format: "T:21.5,H:62.0,PH:6.2,TDS:980,LVL:15.2,LUX:12500,DO:7.8,AT:24.3"
-    /// </summary>
-    private void OnDataReceived(object? sender, CharacteristicUpdatedEventArgs e)
-    {
-        try
-        {
-            var raw = Encoding.UTF8.GetString(e.Characteristic.Value);
-            var data = new SensorData();
+	/// <summary>
+	/// Parses ESP32 sensor data.
+	/// Format: "T:21.5,H:62.0,PH:6.2,TDS:980,LVL:15.2,LUX:12500,DO:7.8,AT:24.3"
+	/// </summary>
+	private void OnDataReceived(object? sender, CharacteristicUpdatedEventArgs e)
+	{
+		try
+		{
+			var raw = Encoding.UTF8.GetString(e.Characteristic.Value);
 
-            foreach (var pair in raw.Split(','))
-            {
-                var kv = pair.Split(':');
-                if (kv.Length != 2 || !double.TryParse(kv[1], out var val)) continue;
+			System.Diagnostics.Debug.WriteLine($"RAW BLE: {raw}");
 
-                data = kv[0].ToUpperInvariant() switch
-                {
-                    "PH" => data with { Ph = val },
-                    "T" or "WT" => data with { WaterTemp = val },
-                    "AT" => data with { AirTemp = val },
-                    "H" => data with { Humidity = val },
-                    "TDS" => data with { Tds = val },
-                    "LVL" => data with { WaterLevel = val },
-                    "LUX" => data with { Light = val },
-                    "DO" => data with { DissolvedOxygen = val },
-                    _ => data
-                };
-            }
+			using var doc = JsonDocument.Parse(raw);
+			var root = doc.RootElement;
 
-            SensorDataReceived?.Invoke(data);
-        }
-        catch (Exception ex)
-        {
-            ErrorOccurred?.Invoke($"Parse error: {ex.Message}");
-        }
-    }
+			double? GetNum(string name)
+				=> root.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.Number
+					? p.GetDouble()
+					: (double?)null;
 
-    public void Dispose()
+			var data = new SensorData
+			{
+				Ph = GetNum("pH"),
+				WaterTemp = GetNum("WaterTemp"),
+				AirTemp = GetNum("AirTemp"),
+				Humidity = GetNum("Humidity"),
+				Tds = GetNum("TDS"),
+				// Optional: these aren't in your current JSON payload
+				WaterLevel = null,
+				Light = null,
+				DissolvedOxygen = null
+			};
+
+			SensorDataReceived?.Invoke(data);
+		}
+		catch (Exception ex)
+		{
+			ErrorOccurred?.Invoke($"Parse error: {ex.Message}");
+		}
+	}
+
+	public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;

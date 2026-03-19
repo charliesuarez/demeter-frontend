@@ -25,8 +25,8 @@ namespace Main
             builder.Services.AddBlazorWebViewDeveloperTools();
     		builder.Logging.AddDebug();
 #endif
-
-            builder.Services.AddSingleton<IBluetoothService, BluetoothService>();
+			builder.Services.AddSingleton<SensorState>();
+			builder.Services.AddSingleton<IBluetoothService, BluetoothService>();
 
             return builder.Build();
         }

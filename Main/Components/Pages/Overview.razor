@@ -2,6 +2,7 @@
 @using Main.Bluetooth
 @using static MudBlazor.Icons
 @inject IBluetoothService Bluetooth
+@inject SensorState SensorState
 @implements IDisposable
 
 <style>
@@ -162,30 +163,6 @@
         <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px;">
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                 <MudStack Spacing="1">
-                    <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Healthy Crops</MudText>
-                    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">4</MudText>
-                </MudStack>
-                <MudIcon Icon="@Icons.Material.Filled.Favorite" Style="color: #11998e;" Size="Size.Large" />
-            </MudStack>
-        </MudPaper>
-    </MudItem>
-
-    <MudItem xs="6" sm="6" md="3">
-        <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px;">
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                <MudStack Spacing="1">
-                    <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Average Health</MudText>
-                    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">95%</MudText>
-                </MudStack>
-                <MudIcon Icon="@Icons.Material.Filled.TrendingUp" Style="color: #11998e;" Size="Size.Large" />
-            </MudStack>
-        </MudPaper>
-    </MudItem>
-
-    <MudItem xs="6" sm="6" md="3">
-        <MudPaper Elevation="0" Outlined="true" Class="pa-4 stat-card" Style="border-radius: 12px;">
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                <MudStack Spacing="1">
                     <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Active Alerts</MudText>
                     <MudText Typo="Typo.h4" Style="font-weight: 700; color: #1f2937;">@_alerts.Count</MudText>
                 </MudStack>
@@ -220,6 +197,7 @@
 
             <MudGrid Spacing="3">
                 @* Row 1 *@
+
                 <MudItem xs="6" sm="6">
                     <MudPaper Elevation="0" Outlined="true" Class="pa-3 metric-card" Style="border-radius: 12px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
@@ -228,7 +206,7 @@
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
                                 <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Solution pH</MudText>
-                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(_sensorData?.Ph, "F1")</MudText>
+                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(SensorState.latest.Ph, "F1")</MudText>
                             </MudStack>
                         </MudStack>
                     </MudPaper>
@@ -242,7 +220,7 @@
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
                                 <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Water Temp</MudText>
-                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(_sensorData?.WaterTemp, "F1", "°C")</MudText>
+                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(SensorState.latest.WaterTemp, "F1", "°C")</MudText>
                             </MudStack>
                         </MudStack>
                     </MudPaper>
@@ -257,7 +235,7 @@
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
                                 <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Water Level</MudText>
-                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(_sensorData?.WaterLevel, "F1", " cm")</MudText>
+                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(SensorState.latest.WaterLevel, "F1", " cm")</MudText>
                             </MudStack>
                         </MudStack>
                     </MudPaper>
@@ -271,7 +249,7 @@
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
                                 <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Dissolved O₂</MudText>
-                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(_sensorData?.DissolvedOxygen, "F1", " mg/L")</MudText>
+                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(SensorState.latest.DissolvedOxygen, "F1", " mg/L")</MudText>
                             </MudStack>
                         </MudStack>
                     </MudPaper>
@@ -286,7 +264,7 @@
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
                                 <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">Light</MudText>
-                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(_sensorData?.Light, "F0", " lux")</MudText>
+                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(SensorState.latest.Light, "F0", " lux")</MudText>
                             </MudStack>
                         </MudStack>
                     </MudPaper>
@@ -300,7 +278,7 @@
                             </div>
                             <MudStack Spacing="0" Style="flex: 1;">
                                 <MudText Typo="Typo.body2" Style="color: #6b7280; font-weight: 500;">TDS</MudText>
-                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(_sensorData?.Tds, "F0", " ppm")</MudText>
+                                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #1f2937;">@FormatValue(SensorState.latest.Tds, "F0", " ppm")</MudText>
                             </MudStack>
                         </MudStack>
                     </MudPaper>
@@ -309,7 +287,7 @@
         </MudPaper>
     </MudItem>
 
-    @* --- SIDEBAR (Status + Controls) --- *@
+    @* --- SIDEBAR (Status) --- *@
     <MudItem xs="12" md="4">
         @* Connection Status Card *@
         <MudPaper Elevation="2" Class="pa-4 mb-4 alert-card" Style="border-radius: 12px;">
@@ -344,36 +322,7 @@
             }
         </MudPaper>
 
-        @* Pump Controls Card *@
-        <MudPaper Elevation="2" Class="pa-4 mb-4 alert-card" Style="border-radius: 12px;">
-            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-3">
-                <MudIcon Icon="@Icons.Material.Filled.Settings" Style="color: #11998e;" Size="Size.Medium" />
-                <MudText Typo="Typo.h6" Style="font-weight: 600; color: #1f2937;">Pump Controls</MudText>
-            </MudStack>
-            <MudStack Spacing="2">
-                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                    <MudText>Water Pump</MudText>
-                    <MudSwitch T="bool" Value="_waterPumpOn" ValueChanged="OnWaterPumpToggle"
-                               Color="Color.Success" Disabled="@(!_isConnected)" />
-                </MudStack>
-                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                    <MudText>Air Pump</MudText>
-                    <MudSwitch T="bool" Value="_airPumpOn" ValueChanged="OnAirPumpToggle"
-                               Color="Color.Success" Disabled="@(!_isConnected)" />
-                </MudStack>
-                <MudDivider Class="my-2" />
-                <MudText Typo="Typo.body2" Style="color: #6b7280;">Nutrient Dosing</MudText>
-                <MudStack Row="true" Spacing="2">
-                    <MudTextField T="int" @bind-Value="_doseDuration" Label="Duration (ms)"
-                                  Variant="Variant.Outlined" Style="flex: 1;" />
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                               OnClick="DoseNutrientsAsync" Disabled="@(!_isConnected)"
-                               Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-                        Dose
-                    </MudButton>
-                </MudStack>
-            </MudStack>
-        </MudPaper>
+
 
         @* Alerts Card *@
         <MudPaper Elevation="2" Class="pa-4 alert-card" Style="border-radius: 12px;">
@@ -452,11 +401,10 @@
     private bool _isConnected;
     private bool _isScanning;
     private bool _showConnectionDialog;
-    private SensorData? _sensorData;
     private List<BleDevice> _discoveredDevices = new();
     private List<AlertItem> _alerts = new();
     private string _macAddress;
-
+    private Action<SensorData>? _sensorHandler;
     private bool _waterPumpOn;
     private bool _airPumpOn;
     private int _doseDuration = 1000;
@@ -465,19 +413,20 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Subscribe to Bluetooth events
-        Bluetooth.SensorDataReceived += OnSensorDataReceived;
+        SensorState.Changed += OnSensorStateChanged;
+
+        _sensorHandler = data => SensorState.SetLatest(data);
+        Bluetooth.SensorDataReceived += _sensorHandler;
+
         Bluetooth.ConnectionChanged += OnConnectionChanged;
         Bluetooth.DeviceDiscovered += OnDeviceDiscovered;
         Bluetooth.ErrorOccurred += OnError;
 
-        // Initialize Bluetooth
         await Bluetooth.InitializeAsync();
     }
-
-    private void OnSensorDataReceived(SensorData data)
+    private void OnSensorStateChanged()
     {
-        _sensorData = data;
+        // SensorState updated -> refresh UI
         InvokeAsync(StateHasChanged);
     }
 
@@ -488,7 +437,6 @@
 
         if (!connected)
         {
-            _sensorData = null;
             _waterPumpOn = false;
             _airPumpOn = false;
         }
@@ -580,7 +528,11 @@
 
     public void Dispose()
     {
-        Bluetooth.SensorDataReceived -= OnSensorDataReceived;
+        SensorState.Changed -= OnSensorStateChanged;
+
+        if (_sensorHandler != null)
+            Bluetooth.SensorDataReceived -= _sensorHandler;
+
         Bluetooth.ConnectionChanged -= OnConnectionChanged;
         Bluetooth.DeviceDiscovered -= OnDeviceDiscovered;
         Bluetooth.ErrorOccurred -= OnError;

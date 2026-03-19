@@ -1,4 +1,6 @@
-﻿namespace Main.Bluetooth;
+﻿using System.Text.Json.Serialization;
+
+namespace Main.Bluetooth;
 
 /// <summary>
 /// Interface for BLE communication with ESP32.
@@ -39,13 +41,25 @@ public record BleDevice(Guid Id, string Name, int Rssi);
 /// </summary>
 public record SensorData
 {
-    public double? Ph { get; init; }
-    public double? WaterTemp { get; init; }
-    public double? AirTemp { get; init; }
-    public double? Humidity { get; init; }
-    public double? Tds { get; init; }
-    public double? WaterLevel { get; init; }
-    public double? Light { get; init; }
-    public double? DissolvedOxygen { get; init; }
-    public DateTime Timestamp { get; init; } = DateTime.Now;
+	[JsonPropertyName("pH")]
+	public double? Ph { get; init; }
+
+	[JsonPropertyName("WaterTemp")]
+	public double? WaterTemp { get; init; }
+
+	[JsonPropertyName("AirTemp")]
+	public double? AirTemp { get; init; }
+
+	[JsonPropertyName("Humidity")]
+	public double? Humidity { get; init; }
+
+	[JsonPropertyName("TDS")]
+	public double? Tds { get; init; }
+
+	// These just won't come in from JSON unless ESP32 sends them
+	public double? WaterLevel { get; init; }
+	public double? Light { get; init; }
+	public double? DissolvedOxygen { get; init; }
+
+	public DateTime Timestamp { get; init; } = DateTime.Now;
 }
