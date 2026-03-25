@@ -60,7 +60,7 @@
         <MudIcon Icon="@Icons.Material.Filled.Grass" Style="vertical-align: middle; margin-right: 0.5rem;" />
         Crops Management
     </h3>
-    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Manage your lettuce batches and track growth progress</p>
+    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Manage your crop batches and track growth progress</p>
 </div>
 
 <MudButton OnClick="ResetDatabase" Color="Color.Error" Variant="Variant.Outlined" Class="mb-4">
@@ -346,12 +346,22 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private double GetGrowthProgress(string type, DateTime startDate)
+    private int GetGrowthProgress(string type, DateTime startDate)
     {
-        int days = (DateTime.Now - startDate).Days;
-        if (_lettuceGrowDays.TryGetValue(type, out int totalDays))
-            return Math.Min((days / (double)totalDays) * 100, 100);
-        return 0;
+        // Match the days to the specific lettuce types from your UI
+        int totalDays = type switch
+        {
+            "Romaine Lettuce" => 50,
+            "Butterhead Lettuce" => 45,
+            "Iceberg Lettuce" => 55,
+            "Looseleaf Lettuce" => 40,
+            _ => 45 // Default fallback
+        };
+
+        double daysPassed = (DateTime.Now - startDate).TotalDays;
+        int percent = (int)((daysPassed / totalDays) * 100);
+
+        return Math.Clamp(percent, 0, 100);
     }
 
     private string GetHarvestDate(string type, DateTime startDate)

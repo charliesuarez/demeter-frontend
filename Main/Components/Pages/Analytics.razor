@@ -266,6 +266,7 @@
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
+                @* --- Reservoir level graph (no longer used/ hidden ) --- 
                 <MudItem xs="12" md="6">
                     <MudCard Elevation="4">
                         <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
@@ -278,6 +279,7 @@
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
+                 *@
                 <MudItem xs="12" md="6">
                     <MudCard Elevation="4">
                         <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
@@ -321,10 +323,12 @@
         <MudTabPanel Text="Alerts" Icon="@Icons.Material.Filled.Warning">
             @if (alerts.Any())
             {
+                @* alert number tracker HIDDEN
                 <MudText Typo="Typo.body2" Style="color: #6b7280; margin-bottom: 1rem;">
                     @alerts.Count alert(s) detected for this batch.
                 </MudText>
-                @foreach (var alert in alerts.OrderByDescending(a => a.Timestamp))
+                *@
+                @foreach (var alert in alerts.OrderByDescending(a => a.Timestamp).Take(20))
                 {
                     <div class="@("alert-item " + (alert.IsCritical ? "alert-critical" : "alert-warning"))">
                         <MudIcon Icon="@(alert.IsCritical ? Icons.Material.Filled.Error : Icons.Material.Filled.Warning)"
@@ -350,19 +354,18 @@
         @* ===================== TAB 4: CROP STATS ===================== *@
         <MudTabPanel Text="Crop Stats" Icon="@Icons.Material.Filled.PieChart">
             <MudGrid Spacing="4" Class="pa-2">
+                @* This one column will now hold BOTH the Chart and the Table *@
                 <MudItem xs="12" md="6">
-                    <MudCard Elevation="4">
+
+                    @* 1. THE PIE CHART CARD *@
+                    <MudCard Elevation="4" Class="mb-4">
                         <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
-                            <MudText Typo="Typo.h6">Lettuce Types Grown (All Batches)</MudText>
+                            <MudText Typo="Typo.h6">Crop Types Grown (All Batches)</MudText>
                         </MudCardHeader>
                         <MudCardContent>
                             @if (pieData.Any())
                             {
-                                <MudChart ChartType="ChartType.Pie"
-                                          InputData="@pieData"
-                                          InputLabels="@pieLabels"
-                                          Width="100%"
-                                          Height="300px" />
+                                <MudChart ChartType="ChartType.Pie" InputData="@pieData" InputLabels="@pieLabels" Width="100%" Height="300px" />
                             }
                             else
                             {
@@ -370,8 +373,8 @@
                             }
                         </MudCardContent>
                     </MudCard>
-                </MudItem>
-                <MudItem xs="12" md="6">
+
+                    @* 2. THE CROP HISTORY CARD (Moved here) *@
                     <MudCard Elevation="4">
                         <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
                             <MudText Typo="Typo.h6">Crop History</MudText>
@@ -385,7 +388,6 @@
                                             <th>Batch</th>
                                             <th>Crops</th>
                                             <th>Started</th>
-                                            <th>Ended</th>
                                             <th>Status</th>
                                         </tr>
                                     </thead>
@@ -402,25 +404,13 @@
                                                     }
                                                 </td>
                                                 <td>@batch.StartDate.ToShortDateString()</td>
-                                                <td>@(batch.EndDate.HasValue ? batch.EndDate.Value.ToShortDateString() : "—")</td>
                                                 <td>
-                                                    @if (batch.EndDate.HasValue)
-                                                    {
-                                                        <span style="color: #11998e; font-weight: 600;">✅ Harvested</span>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span style="color: #3b82f6; font-weight: 600;">🌱 Growing</span>
-                                                    }
+                                                    @(batch.EndDate.HasValue ? "✅" : "🌱")
                                                 </td>
                                             </tr>
                                         }
                                     </tbody>
                                 </table>
-                            }
-                            else
-                            {
-                                <p style="color: #718096; text-align: center; padding: 2rem;">No batch history yet.</p>
                             }
                         </MudCardContent>
                     </MudCard>
