@@ -2,7 +2,10 @@
 @using MudBlazor
 @using MudBlazor.Charts
 @using Main.Services
+@using Main.Bluetooth
 @inject DatabaseService Db
+@inject IBluetoothService Bluetooth
+@implements IDisposable
 
 <style>
     .mud-charts-gridlines-yaxis > path {
@@ -37,11 +40,11 @@
         width: 100%;
     }
 
-    .custom-select:focus {
-        border-color: #667eea;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
+        .custom-select:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
 
     .empty-state {
         text-align: center;
@@ -100,24 +103,24 @@
         border-collapse: collapse;
     }
 
-    .history-table th {
-        background-color: #f0fdf4;
-        color: #11998e;
-        padding: 0.75rem 1rem;
-        text-align: left;
-        font-weight: 600;
-        border-bottom: 2px solid #d1fae5;
-    }
+        .history-table th {
+            background-color: #f0fdf4;
+            color: #11998e;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #d1fae5;
+        }
 
-    .history-table td {
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid #f3f4f6;
-        color: #374151;
-    }
+        .history-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f3f4f6;
+            color: #374151;
+        }
 
-    .history-table tr:hover td {
-        background-color: #f9fafb;
-    }
+        .history-table tr:hover td {
+            background-color: #f9fafb;
+        }
 
     .mock-badge {
         display: inline-block;
@@ -130,18 +133,95 @@
         margin-left: 0.5rem;
     }
 
+    .live-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        background-color: #d1fae5;
+        color: #065f46;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .live-dot {
+        width: 8px;
+        height: 8px;
+        background-color: #10b981;
+        border-radius: 50%;
+        animation: pulse 1.5s infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.3;
+        }
+    }
+
+    .view-btn {
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        border: 2px solid #e0e0e0;
+        background: white;
+        color: #374151;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .view-btn:hover {
+            border-color: #11998e;
+            color: #11998e;
+        }
+
+        .view-btn.active {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border-color: transparent;
+            color: white;
+        }
+
+    .synced-badge {
+        font-size: 0.75rem;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
     @@media (max-width: 600px) {
-        .analytics-header { padding: 1rem; }
-        .analytics-header h3 { font-size: 1.3rem; }
+        .analytics-header {
+            padding: 1rem;
+        }
+
+            .analytics-header h3 {
+                font-size: 1.3rem;
+            }
     }
 </style>
 
 <div class="analytics-header">
-    <h3 style="margin: 0; font-size: 1.8rem; font-weight: 600;">
-        <MudIcon Icon="@Icons.Material.Filled.Analytics" Style="vertical-align: middle; margin-right: 0.5rem;" />
-        Analytics Dashboard
-    </h3>
-    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Monitor your hydroponic system performance and crop vitals</p>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+            <h3 style="margin: 0; font-size: 1.8rem; font-weight: 600;">
+                <MudIcon Icon="@Icons.Material.Filled.Analytics" Style="vertical-align: middle; margin-right: 0.5rem;" />
+                Analytics Dashboard
+            </h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Monitor your hydroponic system performance and crop vitals</p>
+        </div>
+        @if (lastSynced.HasValue)
+        {
+            <div style="background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.8rem; color: white;">
+                <MudIcon Icon="@Icons.Material.Filled.Sync" Size="Size.Small" Style="vertical-align: middle; margin-right: 0.3rem;" />
+                Last synced: @lastSynced.Value.ToString("hh:mm:ss tt")
+            </div>
+        }
+    </div>
 </div>
 
 @* --- BATCH SELECTOR --- *@
@@ -195,6 +275,40 @@
         </MudAlert>
     }
 
+    @* --- VIEW SELECTOR --- *@
+    <div class="filter-card" style="padding: 1rem 1.5rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span style="font-weight: 600; color: #2d3748; font-size: 0.9rem; margin-right: 0.5rem;">View:</span>
+                <button class="view-btn @(currentView == "live" ? "active" : "")" @onclick='() => SetView("live")'>
+                    🔴 Live
+                </button>
+                <button class="view-btn @(currentView == "hourly" ? "active" : "")" @onclick='() => SetView("hourly")'>
+                    Hourly (12h)
+                </button>
+                <button class="view-btn @(currentView == "weekly" ? "active" : "")" @onclick='() => SetView("weekly")'>
+                    Weekly (7d)
+                </button>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                @if (currentView == "live")
+                {
+                    <span class="live-badge">
+                        <span class="live-dot"></span>
+                        Auto-updating
+                    </span>
+                }
+                else
+                {
+                    <button class="view-btn" @onclick="RefreshCurrentView" style="display: flex; align-items: center; gap: 0.3rem;">
+                        <MudIcon Icon="@Icons.Material.Filled.Refresh" Size="Size.Small" />
+                        Refresh
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
     <MudTabs Elevation="3" Rounded="true" ApplyEffectsToChildren="true" PanelClass="pa-4" Class="mb-4">
 
         @* ===================== TAB 1: CROP VITALS ===================== *@
@@ -206,9 +320,16 @@
                             <MudText Typo="Typo.h6">Water pH</MudText>
                         </MudCardHeader>
                         <MudCardContent>
-                            <MudChart ChartType="ChartType.Line" ChartSeries="@PhSeries" XAxisLabels="@Labels"
-                                      ChartOptions="@GetChartOptions("#6366f1")" AxisChartOptions="@GetAxisOptions()"
-                                      Width="100%" Height="250px" />
+                            @if (PhSeries.Any() && PhSeries[0].Data.Length > 0)
+                            {
+                                <MudChart ChartType="ChartType.Line" ChartSeries="@PhSeries" XAxisLabels="@Labels"
+                                          ChartOptions="@GetChartOptions("#6366f1")" AxisChartOptions="@GetAxisOptions()"
+                                          Width="100%" Height="250px" />
+                            }
+                            else
+                            {
+                                <div style="height:250px; display:flex; align-items:center; justify-content:center; color:#9ca3af;">No data for this view</div>
+                            }
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
@@ -218,9 +339,16 @@
                             <MudText Typo="Typo.h6">Water Temperature (°C)</MudText>
                         </MudCardHeader>
                         <MudCardContent>
-                            <MudChart ChartType="ChartType.Line" ChartSeries="@WaterTempSeries" XAxisLabels="@Labels"
-                                      ChartOptions="@GetChartOptions("#f59e0b")" AxisChartOptions="@GetAxisOptions()"
-                                      Width="100%" Height="250px" />
+                            @if (WaterTempSeries.Any() && WaterTempSeries[0].Data.Length > 0)
+                            {
+                                <MudChart ChartType="ChartType.Line" ChartSeries="@WaterTempSeries" XAxisLabels="@Labels"
+                                          ChartOptions="@GetChartOptions("#f59e0b")" AxisChartOptions="@GetAxisOptions()"
+                                          Width="100%" Height="250px" />
+                            }
+                            else
+                            {
+                                <div style="height:250px; display:flex; align-items:center; justify-content:center; color:#9ca3af;">No data for this view</div>
+                            }
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
@@ -230,9 +358,16 @@
                             <MudText Typo="Typo.h6">TDS (PPM)</MudText>
                         </MudCardHeader>
                         <MudCardContent>
-                            <MudChart ChartType="ChartType.Line" ChartSeries="@TdsSeries" XAxisLabels="@Labels"
-                                      ChartOptions="@GetChartOptions("#11998e")" AxisChartOptions="@GetAxisOptions()"
-                                      Width="100%" Height="250px" />
+                            @if (TdsSeries.Any() && TdsSeries[0].Data.Length > 0)
+                            {
+                                <MudChart ChartType="ChartType.Line" ChartSeries="@TdsSeries" XAxisLabels="@Labels"
+                                          ChartOptions="@GetChartOptions("#11998e")" AxisChartOptions="@GetAxisOptions()"
+                                          Width="100%" Height="250px" />
+                            }
+                            else
+                            {
+                                <div style="height:250px; display:flex; align-items:center; justify-content:center; color:#9ca3af;">No data for this view</div>
+                            }
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
@@ -242,9 +377,16 @@
                             <MudText Typo="Typo.h6">Dissolved Oxygen (mg/L)</MudText>
                         </MudCardHeader>
                         <MudCardContent>
-                            <MudChart ChartType="ChartType.Line" ChartSeries="@DoSeries" XAxisLabels="@Labels"
-                                      ChartOptions="@GetChartOptions("#3b82f6")" AxisChartOptions="@GetAxisOptions()"
-                                      Width="100%" Height="250px" />
+                            @if (DoSeries.Any() && DoSeries[0].Data.Length > 0)
+                            {
+                                <MudChart ChartType="ChartType.Line" ChartSeries="@DoSeries" XAxisLabels="@Labels"
+                                          ChartOptions="@GetChartOptions("#3b82f6")" AxisChartOptions="@GetAxisOptions()"
+                                          Width="100%" Height="250px" />
+                            }
+                            else
+                            {
+                                <div style="height:250px; display:flex; align-items:center; justify-content:center; color:#9ca3af;">No data for this view</div>
+                            }
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
@@ -260,35 +402,35 @@
                             <MudText Typo="Typo.h6">Water Level (%)</MudText>
                         </MudCardHeader>
                         <MudCardContent>
-                            <MudChart ChartType="ChartType.Line" ChartSeries="@WaterLevelSeries" XAxisLabels="@Labels"
-                                      ChartOptions="@GetChartOptions("#ef4444")" AxisChartOptions="@GetAxisOptions()"
-                                      Width="100%" Height="250px" />
+                            @if (WaterLevelSeries.Any() && WaterLevelSeries[0].Data.Length > 0)
+                            {
+                                <MudChart ChartType="ChartType.Line" ChartSeries="@WaterLevelSeries" XAxisLabels="@Labels"
+                                          ChartOptions="@GetChartOptions("#ef4444")" AxisChartOptions="@GetAxisOptions()"
+                                          Width="100%" Height="250px" />
+                            }
+                            else
+                            {
+                                <div style="height:250px; display:flex; align-items:center; justify-content:center; color:#9ca3af;">No data for this view</div>
+                            }
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
-                @* --- Reservoir level graph (no longer used/ hidden ) --- 
-                <MudItem xs="12" md="6">
-                    <MudCard Elevation="4">
-                        <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
-                            <MudText Typo="Typo.h6">Reservoir Level (%)</MudText>
-                        </MudCardHeader>
-                        <MudCardContent>
-                            <MudChart ChartType="ChartType.Line" ChartSeries="@ReservoirLevelSeries" XAxisLabels="@Labels"
-                                      ChartOptions="@GetChartOptions("#8b5cf6")" AxisChartOptions="@GetAxisOptions()"
-                                      Width="100%" Height="250px" />
-                        </MudCardContent>
-                    </MudCard>
-                </MudItem>
-                 *@
                 <MudItem xs="12" md="6">
                     <MudCard Elevation="4">
                         <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
                             <MudText Typo="Typo.h6">Air Temperature (°C)</MudText>
                         </MudCardHeader>
                         <MudCardContent>
-                            <MudChart ChartType="ChartType.Line" ChartSeries="@AirTempSeries" XAxisLabels="@Labels"
-                                      ChartOptions="@GetChartOptions("#f97316")" AxisChartOptions="@GetAxisOptions()"
-                                      Width="100%" Height="250px" />
+                            @if (AirTempSeries.Any() && AirTempSeries[0].Data.Length > 0)
+                            {
+                                <MudChart ChartType="ChartType.Line" ChartSeries="@AirTempSeries" XAxisLabels="@Labels"
+                                          ChartOptions="@GetChartOptions("#f97316")" AxisChartOptions="@GetAxisOptions()"
+                                          Width="100%" Height="250px" />
+                            }
+                            else
+                            {
+                                <div style="height:250px; display:flex; align-items:center; justify-content:center; color:#9ca3af;">No data for this view</div>
+                            }
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
@@ -298,9 +440,16 @@
                             <MudText Typo="Typo.h6">Humidity (%)</MudText>
                         </MudCardHeader>
                         <MudCardContent>
-                            <MudChart ChartType="ChartType.Line" ChartSeries="@HumiditySeries" XAxisLabels="@Labels"
-                                      ChartOptions="@GetChartOptions("#06b6d4")" AxisChartOptions="@GetAxisOptions()"
-                                      Width="100%" Height="250px" />
+                            @if (HumiditySeries.Any() && HumiditySeries[0].Data.Length > 0)
+                            {
+                                <MudChart ChartType="ChartType.Line" ChartSeries="@HumiditySeries" XAxisLabels="@Labels"
+                                          ChartOptions="@GetChartOptions("#06b6d4")" AxisChartOptions="@GetAxisOptions()"
+                                          Width="100%" Height="250px" />
+                            }
+                            else
+                            {
+                                <div style="height:250px; display:flex; align-items:center; justify-content:center; color:#9ca3af;">No data for this view</div>
+                            }
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
@@ -310,9 +459,16 @@
                             <MudText Typo="Typo.h6">Light Intensity (lux)</MudText>
                         </MudCardHeader>
                         <MudCardContent>
-                            <MudChart ChartType="ChartType.Line" ChartSeries="@LightSeries" XAxisLabels="@Labels"
-                                      ChartOptions="@GetChartOptions("#eab308")" AxisChartOptions="@GetAxisOptions()"
-                                      Width="100%" Height="250px" />
+                            @if (LightSeries.Any() && LightSeries[0].Data.Length > 0)
+                            {
+                                <MudChart ChartType="ChartType.Line" ChartSeries="@LightSeries" XAxisLabels="@Labels"
+                                          ChartOptions="@GetChartOptions("#eab308")" AxisChartOptions="@GetAxisOptions()"
+                                          Width="100%" Height="250px" />
+                            }
+                            else
+                            {
+                                <div style="height:250px; display:flex; align-items:center; justify-content:center; color:#9ca3af;">No data for this view</div>
+                            }
                         </MudCardContent>
                     </MudCard>
                 </MudItem>
@@ -323,15 +479,10 @@
         <MudTabPanel Text="Alerts" Icon="@Icons.Material.Filled.Warning">
             @if (alerts.Any())
             {
-                @* alert number tracker HIDDEN
-                <MudText Typo="Typo.body2" Style="color: #6b7280; margin-bottom: 1rem;">
-                    @alerts.Count alert(s) detected for this batch.
-                </MudText>
-                *@
                 @foreach (var alert in alerts.OrderByDescending(a => a.Timestamp).Take(20))
                 {
                     <div class="@("alert-item " + (alert.IsCritical ? "alert-critical" : "alert-warning"))">
-                        <MudIcon Icon="@(alert.IsCritical ? Icons.Material.Filled.Error : Icons.Material.Filled.Warning)"
+                        <MudIcon Icon="@(alert.IsCritical? Icons.Material.Filled.Error : Icons.Material.Filled.Warning)"
                                  Style="@("color: " + (alert.IsCritical ? "#ef4444" : "#f59e0b") + "; margin-top: 2px;")"
                                  Size="Size.Small" />
                         <div>
@@ -354,10 +505,7 @@
         @* ===================== TAB 4: CROP STATS ===================== *@
         <MudTabPanel Text="Crop Stats" Icon="@Icons.Material.Filled.PieChart">
             <MudGrid Spacing="4" Class="pa-2">
-                @* This one column will now hold BOTH the Chart and the Table *@
                 <MudItem xs="12" md="6">
-
-                    @* 1. THE PIE CHART CARD *@
                     <MudCard Elevation="4" Class="mb-4">
                         <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
                             <MudText Typo="Typo.h6">Crop Types Grown (All Batches)</MudText>
@@ -374,7 +522,6 @@
                         </MudCardContent>
                     </MudCard>
 
-                    @* 2. THE CROP HISTORY CARD (Moved here) *@
                     <MudCard Elevation="4">
                         <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
                             <MudText Typo="Typo.h6">Crop History</MudText>
@@ -404,9 +551,7 @@
                                                     }
                                                 </td>
                                                 <td>@batch.StartDate.ToShortDateString()</td>
-                                                <td>
-                                                    @(batch.EndDate.HasValue ? "✅" : "🌱")
-                                                </td>
+                                                <td>@(batch.EndDate.HasValue ? "✅" : "🌱")</td>
                                             </tr>
                                         }
                                     </tbody>
@@ -458,6 +603,9 @@ else
         public const double LightCritLow = 2000, LightCritHigh = 4000;
     }
 
+    // =====================
+    // State
+    // =====================
     private List<Batch> allBatches = new();
     private List<Crop> allCrops = new();
     private List<Crop> selectedCrops = new();
@@ -466,7 +614,10 @@ else
     private int? selectedBatchId;
     private bool dataLoaded = false;
     private bool usingMockData = false;
+    private string currentView = "live"; // "live" | "hourly" | "weekly"
+    private DateTime? lastSynced;
 
+    // Chart series
     private List<ChartSeries> PhSeries = new();
     private List<ChartSeries> WaterTempSeries = new();
     private List<ChartSeries> TdsSeries = new();
@@ -481,13 +632,75 @@ else
     private double[] pieData = new double[0];
     private string[] pieLabels = new string[0];
 
+    // =====================
+    // Lifecycle
+    // =====================
     protected override async Task OnInitializedAsync()
     {
         allBatches = await Db.GetAllBatchesAsync();
         allCrops = await Db.GetAllCropsAsync();
         BuildPieChart();
+
+        // Subscribe to live BLE readings
+        Bluetooth.SensorDataReceived += OnLiveReading;
     }
 
+    public void Dispose()
+    {
+        Bluetooth.SensorDataReceived -= OnLiveReading;
+    }
+
+    // =====================
+    // Live update handler
+    // =====================
+    private async void OnLiveReading(SensorData data)
+    {
+        // 1. Basic validation
+        if (currentView != "live" || !selectedBatchId.HasValue) return;
+
+        // 2. Map SensorData (nullable) to SensorReading (non-nullable)
+        // The ?? 0 fixes the conversion errors for Ph, WaterTemp, etc.
+        var newReading = new SensorReading
+        {
+            BatchId = selectedBatchId.Value, // Fixes conversion for BatchId
+            Timestamp = DateTime.Now,
+            Ph = data.Ph ?? 0,
+            WaterTemp = data.WaterTemp ?? 0,
+            AirTemp = data.AirTemp ?? 0,
+            Humidity = data.Humidity ?? 0,
+            Tds = data.Tds ?? 0,
+
+            // Defaulting remaining DB fields to 0
+            Ec = 0,
+            WaterLevel = 0,
+            ReservoirLevel = 0,
+            LightIntensity = 0,
+            DissolvedOxygen = 0
+        };
+
+        // 3. Save to database
+        await Db.SaveReadingAsync(newReading);
+
+        // 4. Update UI state
+        usingMockData = false;
+        lastSynced = DateTime.Now;
+
+        // 5. Refresh the "Last 12" readings for the chart
+        var fresh = await Db.GetLastNReadingsAsync(selectedBatchId.Value, 12);
+
+        if (fresh != null && fresh.Any())
+        {
+            readings = fresh;
+            BuildChartsFromReadings(fresh, "live");
+            BuildAlerts();
+        }
+
+        // 6. Push update to UI thread
+        await InvokeAsync(StateHasChanged);
+    }
+    // =====================
+    // Batch selection
+    // =====================
     private async Task OnBatchSelected(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
@@ -501,12 +714,50 @@ else
 
         selectedBatchId = int.Parse(value);
         selectedCrops = allCrops.Where(c => c.BatchId == selectedBatchId).ToList();
-        readings = await Db.GetReadingsByBatchAsync(selectedBatchId.Value);
+        await LoadViewData();
+    }
 
-        if (readings.Any())
+    // =====================
+    // View switching
+    // =====================
+    private async Task SetView(string view)
+    {
+        currentView = view;
+        if (selectedBatchId.HasValue)
+            await LoadViewData();
+    }
+
+    private async Task RefreshCurrentView()
+    {
+        if (selectedBatchId.HasValue)
+            await LoadViewData();
+    }
+
+    private async Task LoadViewData()
+    {
+        if (!selectedBatchId.HasValue) return;
+
+        List<SensorReading> data;
+
+        if (currentView == "live")
+        {
+            data = await Db.GetLastNReadingsAsync(selectedBatchId.Value, 12);
+        }
+        else if (currentView == "hourly")
+        {
+            data = await Db.GetHourlyAveragesAsync(selectedBatchId.Value, DateTime.Now.AddHours(-12));
+        }
+        else // weekly
+        {
+            data = await Db.GetDailyAveragesAsync(selectedBatchId.Value, DateTime.Now.AddDays(-7));
+        }
+
+        if (data.Any())
         {
             usingMockData = false;
-            BuildChartsFromReadings(readings);
+            readings = data;
+            lastSynced = readings.Last().Timestamp;
+            BuildChartsFromReadings(data, currentView);
         }
         else
         {
@@ -518,40 +769,61 @@ else
         dataLoaded = true;
     }
 
-    private void BuildChartsFromReadings(List<SensorReading> data)
+    // =====================
+    // Chart building
+    // =====================
+    private void BuildChartsFromReadings(List<SensorReading> data, string view)
     {
-        Labels = data.Select(r => r.Timestamp.ToString("HH:mm")).ToArray();
-        PhSeries = new List<ChartSeries> { new ChartSeries { Name = "pH", Data = data.Select(r => r.Ph).ToArray(), ShowDataMarkers = true } };
-        WaterTempSeries = new List<ChartSeries> { new ChartSeries { Name = "Water Temp (°C)", Data = data.Select(r => r.WaterTemp).ToArray(), ShowDataMarkers = true } };
-        TdsSeries = new List<ChartSeries> { new ChartSeries { Name = "TDS (PPM)", Data = data.Select(r => r.Tds).ToArray(), ShowDataMarkers = true } };
-        DoSeries = new List<ChartSeries> { new ChartSeries { Name = "DO (mg/L)", Data = data.Select(r => r.DissolvedOxygen).ToArray(), ShowDataMarkers = true } };
-        WaterLevelSeries = new List<ChartSeries> { new ChartSeries { Name = "Water Level (%)", Data = data.Select(r => r.WaterLevel).ToArray(), ShowDataMarkers = true } };
-        ReservoirLevelSeries = new List<ChartSeries> { new ChartSeries { Name = "Reservoir Level (%)", Data = data.Select(r => r.ReservoirLevel).ToArray(), ShowDataMarkers = true } };
-        AirTempSeries = new List<ChartSeries> { new ChartSeries { Name = "Air Temp (°C)", Data = data.Select(r => r.AirTemp).ToArray(), ShowDataMarkers = true } };
-        HumiditySeries = new List<ChartSeries> { new ChartSeries { Name = "Humidity (%)", Data = data.Select(r => r.Humidity).ToArray(), ShowDataMarkers = true } };
-        LightSeries = new List<ChartSeries> { new ChartSeries { Name = "Light (lux)", Data = data.Select(r => r.LightIntensity).ToArray(), ShowDataMarkers = true } };
+        // X-axis label format depends on the view
+        Labels = view switch
+        {
+            // index % 3 == 0 shows every 3rd label (e.g., 0, 3, 6, 9)
+            // This ensures the 11th/12th points (the ones on the far right)
+            // are empty strings, preventing the cutoff.
+            "live" => data.Select((r, index) => index % 3 == 0 ? r.Timestamp.ToString("h:mm tt") : "").ToArray(),
+            "hourly" => data.Select(r => r.Timestamp.ToString("h tt")).ToArray(),
+            "weekly" => data.Select(r => r.Timestamp.ToString("ddd")).ToArray(),
+            _ => data.Select(r => r.Timestamp.ToString("h:mm tt")).ToArray()
+        };
+
+        bool markers = view == "live";
+
+        PhSeries = Series("pH", data.Select(r => r.Ph).ToArray(), markers);
+        WaterTempSeries = Series("Water Temp (°C)", data.Select(r => r.WaterTemp).ToArray(), markers);
+        TdsSeries = Series("TDS (PPM)", data.Select(r => r.Tds).ToArray(), markers);
+        DoSeries = Series("DO (mg/L)", data.Select(r => r.DissolvedOxygen).ToArray(), markers);
+        WaterLevelSeries = Series("Water Level (%)", data.Select(r => r.WaterLevel).ToArray(), markers);
+        ReservoirLevelSeries = Series("Reservoir (%)", data.Select(r => r.ReservoirLevel).ToArray(), markers);
+        AirTempSeries = Series("Air Temp (°C)", data.Select(r => r.AirTemp).ToArray(), markers);
+        HumiditySeries = Series("Humidity (%)", data.Select(r => r.Humidity).ToArray(), markers);
+        LightSeries = Series("Light (lux)", data.Select(r => r.LightIntensity).ToArray(), markers);
     }
+
+    private List<ChartSeries> Series(string name, double[] data, bool markers) =>
+        new() { new ChartSeries { Name = name, Data = data, ShowDataMarkers = markers } };
 
     private void BuildMockCharts()
     {
         var now = DateTime.Now;
         var mock = new List<SensorReading>
         {
-            new SensorReading { Timestamp = now.AddHours(-8), Ph = 6.2, WaterTemp = 20.1, AirTemp = 21.0, Humidity = 58, Tds = 580, DissolvedOxygen = 7.5, WaterLevel = 95, ReservoirLevel = 85, LightIntensity = 3100 },
-            new SensorReading { Timestamp = now.AddHours(-7), Ph = 6.1, WaterTemp = 20.3, AirTemp = 21.2, Humidity = 59, Tds = 590, DissolvedOxygen = 7.6, WaterLevel = 95, ReservoirLevel = 84, LightIntensity = 3200 },
-            new SensorReading { Timestamp = now.AddHours(-6), Ph = 6.0, WaterTemp = 20.5, AirTemp = 21.5, Humidity = 60, Tds = 600, DissolvedOxygen = 7.7, WaterLevel = 94, ReservoirLevel = 83, LightIntensity = 3300 },
-            new SensorReading { Timestamp = now.AddHours(-5), Ph = 5.9, WaterTemp = 20.4, AirTemp = 21.3, Humidity = 61, Tds = 610, DissolvedOxygen = 7.8, WaterLevel = 94, ReservoirLevel = 82, LightIntensity = 3250 },
-            new SensorReading { Timestamp = now.AddHours(-4), Ph = 5.7, WaterTemp = 20.6, AirTemp = 21.8, Humidity = 62, Tds = 620, DissolvedOxygen = 7.8, WaterLevel = 93, ReservoirLevel = 80, LightIntensity = 3100 },
-            new SensorReading { Timestamp = now.AddHours(-3), Ph = 6.1, WaterTemp = 20.5, AirTemp = 22.0, Humidity = 60, Tds = 630, DissolvedOxygen = 7.6, WaterLevel = 93, ReservoirLevel = 79, LightIntensity = 2900 },
-            new SensorReading { Timestamp = now.AddHours(-2), Ph = 6.0, WaterTemp = 20.7, AirTemp = 21.9, Humidity = 59, Tds = 640, DissolvedOxygen = 7.8, WaterLevel = 92, ReservoirLevel = 78, LightIntensity = 2800 },
-            new SensorReading { Timestamp = now.AddHours(-1), Ph = 6.1, WaterTemp = 20.6, AirTemp = 21.7, Humidity = 58, Tds = 650, DissolvedOxygen = 7.7, WaterLevel = 92, ReservoirLevel = 77, LightIntensity = 1800 },
-            new SensorReading { Timestamp = now,              Ph = 5.9, WaterTemp = 20.4, AirTemp = 21.5, Humidity = 60, Tds = 660, DissolvedOxygen = 7.9, WaterLevel = 91, ReservoirLevel = 76, LightIntensity = 500  },
+            new() { Timestamp = now.AddHours(-8), Ph = 6.2, WaterTemp = 20.1, AirTemp = 21.0, Humidity = 58, Tds = 580, DissolvedOxygen = 7.5, WaterLevel = 95, ReservoirLevel = 85, LightIntensity = 3100 },
+            new() { Timestamp = now.AddHours(-7), Ph = 6.1, WaterTemp = 20.3, AirTemp = 21.2, Humidity = 59, Tds = 590, DissolvedOxygen = 7.6, WaterLevel = 95, ReservoirLevel = 84, LightIntensity = 3200 },
+            new() { Timestamp = now.AddHours(-6), Ph = 6.0, WaterTemp = 20.5, AirTemp = 21.5, Humidity = 60, Tds = 600, DissolvedOxygen = 7.7, WaterLevel = 94, ReservoirLevel = 83, LightIntensity = 3300 },
+            new() { Timestamp = now.AddHours(-5), Ph = 5.9, WaterTemp = 20.4, AirTemp = 21.3, Humidity = 61, Tds = 610, DissolvedOxygen = 7.8, WaterLevel = 94, ReservoirLevel = 82, LightIntensity = 3250 },
+            new() { Timestamp = now.AddHours(-4), Ph = 5.7, WaterTemp = 20.6, AirTemp = 21.8, Humidity = 62, Tds = 620, DissolvedOxygen = 7.8, WaterLevel = 93, ReservoirLevel = 80, LightIntensity = 3100 },
+            new() { Timestamp = now.AddHours(-3), Ph = 6.1, WaterTemp = 20.5, AirTemp = 22.0, Humidity = 60, Tds = 630, DissolvedOxygen = 7.6, WaterLevel = 93, ReservoirLevel = 79, LightIntensity = 2900 },
+            new() { Timestamp = now.AddHours(-2), Ph = 6.0, WaterTemp = 20.7, AirTemp = 21.9, Humidity = 59, Tds = 640, DissolvedOxygen = 7.8, WaterLevel = 92, ReservoirLevel = 78, LightIntensity = 2800 },
+            new() { Timestamp = now.AddHours(-1), Ph = 6.1, WaterTemp = 20.6, AirTemp = 21.7, Humidity = 58, Tds = 650, DissolvedOxygen = 7.7, WaterLevel = 92, ReservoirLevel = 77, LightIntensity = 1800 },
+            new() { Timestamp = now,              Ph = 5.9, WaterTemp = 20.4, AirTemp = 21.5, Humidity = 60, Tds = 660, DissolvedOxygen = 7.9, WaterLevel = 91, ReservoirLevel = 76, LightIntensity = 500  },
         };
-
         readings = mock;
-        BuildChartsFromReadings(mock);
+        BuildChartsFromReadings(mock, "live");
     }
 
+    // =====================
+    // Alerts
+    // =====================
     private void BuildAlerts()
     {
         alerts.Clear();
@@ -620,6 +892,7 @@ else
         DoSeries.Clear(); WaterLevelSeries.Clear(); ReservoirLevelSeries.Clear();
         AirTempSeries.Clear(); HumiditySeries.Clear(); LightSeries.Clear();
         Labels = new string[0];
+        lastSynced = null;
     }
 
     private ChartOptions GetChartOptions(string color) => new ChartOptions
@@ -633,6 +906,6 @@ else
     private AxisChartOptions GetAxisOptions() => new AxisChartOptions
     {
         MatchBoundsToSize = true,
-        XAxisLabelRotation = 0
+        XAxisLabelRotation = 0 // This tilts labels so they don't overlap
     };
 }
