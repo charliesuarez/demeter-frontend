@@ -186,14 +186,6 @@
             color: white;
         }
 
-    .synced-badge {
-        font-size: 0.75rem;
-        color: #6b7280;
-        display: flex;
-        align-items: center;
-        gap: 0.3rem;
-    }
-
     @@media (max-width: 600px) {
         .analytics-header {
             padding: 1rem;
@@ -232,7 +224,7 @@
                 <MudIcon Icon="@Icons.Material.Filled.Layers" Size="Size.Small" Style="vertical-align: middle; margin-right: 0.3rem;" />
                 Select Batch
             </label>
-            <select class="custom-select" @onchange="OnBatchSelected">
+            <select class="custom-select" @bind="selectedBatchId" @oninput="OnBatchSelected">
                 <option value="">Choose a batch to begin...</option>
                 @foreach (var batch in allBatches)
                 {
@@ -583,38 +575,22 @@ else
         public bool IsCritical { get; set; }
     }
 
-    private static class Thresholds
-    {
-        public const double PhWarnLow = 5.8, PhWarnHigh = 6.2;
-        public const double PhCritLow = 5.5, PhCritHigh = 6.5;
-        public const double WaterTempWarnLow = 19, WaterTempWarnHigh = 23;
-        public const double WaterTempCritLow = 18, WaterTempCritHigh = 24;
-        public const double AirTempWarnLow = 17, AirTempWarnHigh = 25;
-        public const double AirTempCritLow = 16, AirTempCritHigh = 26;
-        public const double HumidityWarnLow = 55, HumidityWarnHigh = 65;
-        public const double HumidityCritLow = 50, HumidityCritHigh = 70;
-        public const double TdsWarnLow = 500, TdsWarnHigh = 700;
-        public const double TdsCritLow = 400, TdsCritHigh = 800;
-        public const double DoWarnLow = 7;
-        public const double DoCritLow = 6;
-        public const double WaterLevelWarnLow = 30;
-        public const double WaterLevelCritLow = 20;
-        public const double LightWarnLow = 2500, LightWarnHigh = 3500;
-        public const double LightCritLow = 2000, LightCritHigh = 4000;
-    }
-
     // =====================
     // State
     // =====================
+    private SystemSettings? _settings;
     private List<Batch> allBatches = new();
     private List<Crop> allCrops = new();
     private List<Crop> selectedCrops = new();
+    // liveBuffer holds the rolling 12-point window shown in Live view,
+    // built directly from incoming BLE events — no DB round-trip needed.
+    private List<SensorReading> liveBuffer = new();
     private List<SensorReading> readings = new();
     private List<AlertEntry> alerts = new();
     private int? selectedBatchId;
     private bool dataLoaded = false;
     private bool usingMockData = false;
-    private string currentView = "live"; // "live" | "hourly" | "weekly"
+    private string currentView = "live";
     private DateTime? lastSynced;
 
     // Chart series
@@ -627,22 +603,34 @@ else
     private List<ChartSeries> AirTempSeries = new();
     private List<ChartSeries> HumiditySeries = new();
     private List<ChartSeries> LightSeries = new();
-    private string[] Labels = new string[0];
+    private string[] Labels = Array.Empty<string>();
 
-    private double[] pieData = new double[0];
-    private string[] pieLabels = new string[0];
+    private double[] pieData = Array.Empty<double>();
+    private string[] pieLabels = Array.Empty<string>();
 
     // =====================
     // Lifecycle
     // =====================
     protected override async Task OnInitializedAsync()
     {
+        _settings = await Db.GetSettingsAsync();
         allBatches = await Db.GetAllBatchesAsync();
         allCrops = await Db.GetAllCropsAsync();
+
+        var activeBatch = await Db.GetActiveBatchAsync();
+        if (activeBatch != null)
+        {
+            selectedBatchId = activeBatch.Id;
+            selectedCrops = allCrops.Where(c => c.BatchId == selectedBatchId).ToList();
+            await LoadViewData();
+        }
+
         BuildPieChart();
 
-        // Subscribe to live BLE readings
+        // Subscribe AFTER initial load to avoid a redundant update on startup
         Bluetooth.SensorDataReceived += OnLiveReading;
+
+        StateHasChanged();
     }
 
     public void Dispose()
@@ -652,69 +640,64 @@ else
 
     // =====================
     // Live update handler
+    // Appends directly to liveBuffer from the BLE event — bypasses the DB
+    // entirely so there is no race between the write in Overview and a read here.
     // =====================
-    private async void OnLiveReading(SensorData data)
+    private void OnLiveReading(SensorData data)
     {
-        // 1. Basic validation
         if (currentView != "live" || !selectedBatchId.HasValue) return;
 
-        // 2. Map SensorData (nullable) to SensorReading (non-nullable)
-        // The ?? 0 fixes the conversion errors for Ph, WaterTemp, etc.
         var newReading = new SensorReading
         {
-            BatchId = selectedBatchId.Value, // Fixes conversion for BatchId
+            BatchId = selectedBatchId.Value,
             Timestamp = DateTime.Now,
             Ph = data.Ph ?? 0,
             WaterTemp = data.WaterTemp ?? 0,
             AirTemp = data.AirTemp ?? 0,
             Humidity = data.Humidity ?? 0,
             Tds = data.Tds ?? 0,
-
-            // Defaulting remaining DB fields to 0
-            Ec = 0,
-            WaterLevel = 0,
-            ReservoirLevel = 0,
-            LightIntensity = 0,
-            DissolvedOxygen = 0
+            Ec = data.Tds ?? 0,
+            WaterLevel = data.WaterLevel ?? 0,
+            ReservoirLevel = data.WaterLevel ?? 0,
+            LightIntensity = data.Light ?? 0,
+            DissolvedOxygen = data.DissolvedOxygen ?? 0
         };
 
-        // 3. Save to database
-        await Db.SaveReadingAsync(newReading);
+        // Rolling window — keep only the last 12 points
+        liveBuffer.Add(newReading);
+        if (liveBuffer.Count > 12)
+            liveBuffer.RemoveAt(0);
 
-        // 4. Update UI state
         usingMockData = false;
-        lastSynced = DateTime.Now;
+        lastSynced = newReading.Timestamp;
+        readings = new List<SensorReading>(liveBuffer);
 
-        // 5. Refresh the "Last 12" readings for the chart
-        var fresh = await Db.GetLastNReadingsAsync(selectedBatchId.Value, 12);
+        BuildChartsFromReadings(readings, "live");
+        BuildAlerts();
 
-        if (fresh != null && fresh.Any())
-        {
-            readings = fresh;
-            BuildChartsFromReadings(fresh, "live");
-            BuildAlerts();
-        }
-
-        // 6. Push update to UI thread
-        await InvokeAsync(StateHasChanged);
+        // Must marshal to the UI thread since this fires on the BLE thread
+        InvokeAsync(StateHasChanged);
     }
+
     // =====================
     // Batch selection
     // =====================
     private async Task OnBatchSelected(ChangeEventArgs e)
     {
         var value = e.Value?.ToString();
-        if (string.IsNullOrEmpty(value))
+        if (int.TryParse(value, out int id))
+        {
+            selectedBatchId = id;
+            selectedCrops = allCrops.Where(c => c.BatchId == selectedBatchId).ToList();
+            liveBuffer.Clear();
+            await LoadViewData();
+        }
+        else
         {
             selectedBatchId = null;
-            selectedCrops.Clear();
+            liveBuffer.Clear();
             ClearCharts();
-            return;
         }
-
-        selectedBatchId = int.Parse(value);
-        selectedCrops = allCrops.Where(c => c.BatchId == selectedBatchId).ToList();
-        await LoadViewData();
     }
 
     // =====================
@@ -723,12 +706,15 @@ else
     private async Task SetView(string view)
     {
         currentView = view;
+        if (view == "live")
+            liveBuffer.Clear(); // will be re-seeded from DB in LoadViewData
         if (selectedBatchId.HasValue)
             await LoadViewData();
     }
 
     private async Task RefreshCurrentView()
     {
+        _settings = await Db.GetSettingsAsync();
         if (selectedBatchId.HasValue)
             await LoadViewData();
     }
@@ -741,16 +727,14 @@ else
 
         if (currentView == "live")
         {
+            // Seed liveBuffer from DB so historical points show on first load
             data = await Db.GetLastNReadingsAsync(selectedBatchId.Value, 12);
+            liveBuffer = new List<SensorReading>(data);
         }
         else if (currentView == "hourly")
-        {
-            data = await Db.GetHourlyAveragesAsync(selectedBatchId.Value, DateTime.Now.AddHours(-12));
-        }
-        else // weekly
-        {
-            data = await Db.GetDailyAveragesAsync(selectedBatchId.Value, DateTime.Now.AddDays(-7));
-        }
+            data = await Db.GetHourlyAveragesAsync(selectedBatchId.Value, DateTime.Now.AddHours(-48));
+        else
+            data = await Db.GetDailyAveragesAsync(selectedBatchId.Value, DateTime.Now.AddDays(-30));
 
         if (data.Any())
         {
@@ -774,13 +758,9 @@ else
     // =====================
     private void BuildChartsFromReadings(List<SensorReading> data, string view)
     {
-        // X-axis label format depends on the view
         Labels = view switch
         {
-            // index % 3 == 0 shows every 3rd label (e.g., 0, 3, 6, 9)
-            // This ensures the 11th/12th points (the ones on the far right)
-            // are empty strings, preventing the cutoff.
-            "live" => data.Select((r, index) => index % 3 == 0 ? r.Timestamp.ToString("h:mm tt") : "").ToArray(),
+            "live" => data.Select((r, i) => i % 3 == 0 ? r.Timestamp.ToString("h:mm tt") : "").ToArray(),
             "hourly" => data.Select(r => r.Timestamp.ToString("h tt")).ToArray(),
             "weekly" => data.Select(r => r.Timestamp.ToString("ddd")).ToArray(),
             _ => data.Select(r => r.Timestamp.ToString("h:mm tt")).ToArray()
@@ -817,6 +797,7 @@ else
             new() { Timestamp = now.AddHours(-1), Ph = 6.1, WaterTemp = 20.6, AirTemp = 21.7, Humidity = 58, Tds = 650, DissolvedOxygen = 7.7, WaterLevel = 92, ReservoirLevel = 77, LightIntensity = 1800 },
             new() { Timestamp = now,              Ph = 5.9, WaterTemp = 20.4, AirTemp = 21.5, Humidity = 60, Tds = 660, DissolvedOxygen = 7.9, WaterLevel = 91, ReservoirLevel = 76, LightIntensity = 500  },
         };
+        liveBuffer = new List<SensorReading>(mock);
         readings = mock;
         BuildChartsFromReadings(mock, "live");
     }
@@ -826,73 +807,68 @@ else
     // =====================
     private void BuildAlerts()
     {
+        if (_settings == null) return;
         alerts.Clear();
+
         foreach (var r in readings)
         {
-            if (r.Ph < Thresholds.PhCritLow || r.Ph > Thresholds.PhCritHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"pH is critically off at {r.Ph:F1} — immediate adjustment needed (safe range: 5.5–6.5)" });
-            else if (r.Ph < Thresholds.PhWarnLow || r.Ph > Thresholds.PhWarnHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"pH is slightly off at {r.Ph:F1} — optimal range is 5.8–6.2" });
+            if (r.Ph < _settings.PhMin || r.Ph > _settings.PhMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"pH is critically off at {r.Ph:F1} — safe range: {_settings.PhMin}–{_settings.PhMax}" });
+            else if (r.Ph < _settings.PhWarnMin || r.Ph > _settings.PhWarnMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"pH is slightly off at {r.Ph:F1} — optimal range is {_settings.PhWarnMin}–{_settings.PhWarnMax}" });
 
-            if (r.WaterTemp < Thresholds.WaterTempCritLow || r.WaterTemp > Thresholds.WaterTempCritHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Water temperature is critically {(r.WaterTemp < Thresholds.WaterTempCritLow ? "low" : "high")} at {r.WaterTemp:F1}°C — plant health at risk" });
-            else if (r.WaterTemp < Thresholds.WaterTempWarnLow || r.WaterTemp > Thresholds.WaterTempWarnHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Water temperature is {r.WaterTemp:F1}°C — slightly outside optimal range (19–23°C)" });
+            if (r.WaterTemp < _settings.WaterTempMin || r.WaterTemp > _settings.WaterTempMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Water temperature critically {(r.WaterTemp < _settings.WaterTempMin ? "low" : "high")} at {r.WaterTemp:F1}°C" });
+            else if (r.WaterTemp < _settings.WaterTempWarnMin || r.WaterTemp > _settings.WaterTempWarnMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Water temperature is {r.WaterTemp:F1}°C — slightly outside optimal range ({_settings.WaterTempWarnMin}–{_settings.WaterTempWarnMax}°C)" });
 
-            if (r.AirTemp < Thresholds.AirTempCritLow || r.AirTemp > Thresholds.AirTempCritHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Air temperature is critically {(r.AirTemp < Thresholds.AirTempCritLow ? "low" : "high")} at {r.AirTemp:F1}°C" });
-            else if (r.AirTemp < Thresholds.AirTempWarnLow || r.AirTemp > Thresholds.AirTempWarnHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Air temperature is {r.AirTemp:F1}°C — slightly outside optimal range (17–25°C)" });
+            if (r.AirTemp < _settings.AirTempMin || r.AirTemp > _settings.AirTempMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Air temperature critically {(r.AirTemp < _settings.AirTempMin ? "low" : "high")} at {r.AirTemp:F1}°C" });
+            else if (r.AirTemp < _settings.AirTempWarnMin || r.AirTemp > _settings.AirTempWarnMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Air temperature is {r.AirTemp:F1}°C — slightly outside optimal range" });
 
-            if (r.Humidity < Thresholds.HumidityCritLow || r.Humidity > Thresholds.HumidityCritHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Humidity is critically {(r.Humidity < Thresholds.HumidityCritLow ? "low" : "high")} at {r.Humidity:F0}%" });
-            else if (r.Humidity < Thresholds.HumidityWarnLow || r.Humidity > Thresholds.HumidityWarnHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Humidity is {r.Humidity:F0}% — slightly outside optimal range (55–65%)" });
+            if (r.Humidity < _settings.HumidityMin || r.Humidity > _settings.HumidityMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Humidity critically {(r.Humidity < _settings.HumidityMin ? "low" : "high")} at {r.Humidity:F0}%" });
+            else if (r.Humidity < _settings.HumidityWarnMin || r.Humidity > _settings.HumidityWarnMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Humidity is {r.Humidity:F0}% — slightly outside optimal range ({_settings.HumidityWarnMin}–{_settings.HumidityWarnMax}%)" });
 
-            if (r.Tds < Thresholds.TdsCritLow || r.Tds > Thresholds.TdsCritHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Nutrient concentration is critically {(r.Tds < Thresholds.TdsCritLow ? "low" : "high")} at {r.Tds:F0} PPM — dosing adjustment needed" });
-            else if (r.Tds < Thresholds.TdsWarnLow || r.Tds > Thresholds.TdsWarnHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Nutrient concentration is {r.Tds:F0} PPM — slightly outside optimal range (500–700 PPM)" });
+            if (r.Tds < _settings.TdsMin || r.Tds > _settings.TdsMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Nutrient concentration critically {(r.Tds < _settings.TdsMin ? "low" : "high")} at {r.Tds:F0} PPM" });
+            else if (r.Tds < _settings.TdsWarnMin || r.Tds > _settings.TdsWarnMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Nutrient concentration is {r.Tds:F0} PPM — outside optimal range ({_settings.TdsWarnMin}–{_settings.TdsWarnMax} PPM)" });
 
-            if (r.DissolvedOxygen < Thresholds.DoCritLow)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Dissolved oxygen is critically low at {r.DissolvedOxygen:F1} mg/L — plants may suffocate" });
-            else if (r.DissolvedOxygen < Thresholds.DoWarnLow)
+            if (r.DissolvedOxygen < _settings.DoMin)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Dissolved oxygen critically low at {r.DissolvedOxygen:F1} mg/L — plants may suffocate" });
+            else if (r.DissolvedOxygen < _settings.DoWarnMin)
                 alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Dissolved oxygen is low at {r.DissolvedOxygen:F1} mg/L — check air pump" });
 
-            if (r.WaterLevel < Thresholds.WaterLevelCritLow)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Water level is critically low at {r.WaterLevel:F0}% — refill immediately" });
-            else if (r.WaterLevel < Thresholds.WaterLevelWarnLow)
+            if (r.WaterLevel < _settings.WaterLevelMin)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Water level critically low at {r.WaterLevel:F0}% — refill immediately" });
+            else if (r.WaterLevel < _settings.WaterLevelWarnMin)
                 alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Water level is low at {r.WaterLevel:F0}% — consider refilling soon" });
 
-            if (r.LightIntensity < Thresholds.LightCritLow || r.LightIntensity > Thresholds.LightCritHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Light intensity is critically {(r.LightIntensity < Thresholds.LightCritLow ? "low" : "high")} at {r.LightIntensity:F0} lux — check grow lights" });
-            else if (r.LightIntensity < Thresholds.LightWarnLow || r.LightIntensity > Thresholds.LightWarnHigh)
-                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Light intensity is {r.LightIntensity:F0} lux — slightly outside optimal range (2500–3500 lux)" });
+            if (r.LightIntensity < _settings.LightMin || r.LightIntensity > _settings.LightMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = true, Message = $"Light intensity critically {(r.LightIntensity < _settings.LightMin ? "low" : "high")} at {r.LightIntensity:F0} lux" });
+            else if (r.LightIntensity < _settings.LightWarnMin || r.LightIntensity > _settings.LightWarnMax)
+                alerts.Add(new AlertEntry { Timestamp = r.Timestamp, IsCritical = false, Message = $"Light intensity is {r.LightIntensity:F0} lux — outside optimal range ({_settings.LightWarnMin}–{_settings.LightWarnMax} lux)" });
         }
     }
 
     private void BuildPieChart()
     {
-        var grouped = allCrops
-            .GroupBy(c => c.Type)
-            .OrderByDescending(g => g.Count())
-            .ToList();
-
+        var grouped = allCrops.GroupBy(c => c.Type).OrderByDescending(g => g.Count()).ToList();
         pieData = grouped.Select(g => (double)g.Count()).ToArray();
         pieLabels = grouped.Select(g => g.Key).ToArray();
     }
 
     private void ClearCharts()
     {
-        dataLoaded = false;
-        usingMockData = false;
-        readings.Clear();
-        alerts.Clear();
+        dataLoaded = false; usingMockData = false;
+        readings.Clear(); alerts.Clear(); liveBuffer.Clear();
         PhSeries.Clear(); WaterTempSeries.Clear(); TdsSeries.Clear();
         DoSeries.Clear(); WaterLevelSeries.Clear(); ReservoirLevelSeries.Clear();
         AirTempSeries.Clear(); HumiditySeries.Clear(); LightSeries.Clear();
-        Labels = new string[0];
-        lastSynced = null;
+        Labels = Array.Empty<string>(); lastSynced = null;
     }
 
     private ChartOptions GetChartOptions(string color) => new ChartOptions
@@ -906,6 +882,6 @@ else
     private AxisChartOptions GetAxisOptions() => new AxisChartOptions
     {
         MatchBoundsToSize = true,
-        XAxisLabelRotation = 0 // This tilts labels so they don't overlap
+        XAxisLabelRotation = 0
     };
 }

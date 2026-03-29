@@ -1,5 +1,567 @@
 ﻿@page "/settings"
+@using MudBlazor
+@using Main.Services
+@inject DatabaseService Db
+@inject IDialogService DialogService
 
-<h1>Settings</h1>
+<style>
+    .settings-header {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
 
-Show settings for the system
+    .settings-section {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .threshold-row {
+        display: grid;
+        grid-template-columns: 180px 1fr 1fr 1fr 1fr;
+        gap: 0.75rem;
+        align-items: center;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+        .threshold-row:last-child {
+            border-bottom: none;
+        }
+
+    .threshold-label {
+        font-weight: 600;
+        color: #374151;
+        font-size: 0.9rem;
+    }
+
+    .threshold-col-header {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-align: center;
+    }
+
+    .db-path-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        font-family: monospace;
+        font-size: 0.82rem;
+        color: #475569;
+        word-break: break-all;
+    }
+
+    .save-bar {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        border-top: 2px solid #e2e8f0;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        z-index: 10;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+    }
+
+    .danger-btn {
+        background: #fee2e2;
+        color: #dc2626;
+        border: 1px solid #fca5a5;
+        border-radius: 6px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .danger-btn:hover {
+            background: #dc2626;
+            color: white;
+        }
+
+    @@media (max-width: 700px) {
+        .threshold-row {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .threshold-label {
+            grid-column: 1 / -1;
+        }
+    }
+</style>
+
+<div class="settings-header">
+    <h3 style="margin: 0; font-size: 1.8rem; font-weight: 600;">
+        <MudIcon Icon="@Icons.Material.Filled.Settings" Style="vertical-align: middle; margin-right: 0.5rem;" />
+        System Settings
+    </h3>
+    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Configure thresholds, polling rate, and database management</p>
+</div>
+
+@if (settings == null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Success" />
+}
+else
+{
+    @* ===================== SECTION 1: PRESETS ===================== *@
+    <div class="settings-section">
+        <div class="section-title">
+            <MudIcon Icon="@Icons.Material.Filled.AutoAwesome" Size="Size.Small" Style="color:#11998e;" />
+            Crop Presets
+        </div>
+        <MudText Typo="Typo.body2" Style="color:#6b7280; margin-bottom:1rem;">
+            Select a preset to automatically fill all threshold fields with recommended values for that crop type.
+        </MudText>
+        <div style="display:flex; gap:0.75rem; flex-wrap:wrap;">
+            @foreach (var preset in presets.Keys)
+            {
+                <MudButton Variant="@(settings.LastPreset == preset ? Variant.Filled : Variant.Outlined)"
+                           Color="Color.Success"
+                           Size="Size.Small"
+                           OnClick="() => ApplyPreset(preset)">
+                    @preset
+                </MudButton>
+            }
+        </div>
+        @if (!string.IsNullOrEmpty(settings.LastPreset))
+        {
+            <MudText Typo="Typo.caption" Style="color:#9ca3af; margin-top:0.75rem; display:block;">
+                Current preset: @settings.LastPreset
+            </MudText>
+        }
+    </div>
+
+    @* ===================== SECTION 2: THRESHOLDS ===================== *@
+    <div class="settings-section">
+        <div class="section-title">
+            <MudIcon Icon="@Icons.Material.Filled.Tune" Size="Size.Small" Style="color:#11998e;" />
+            Alert Thresholds
+        </div>
+        <MudText Typo="Typo.body2" Style="color:#6b7280; margin-bottom:1.25rem;">
+            Warning thresholds trigger yellow alerts. Critical thresholds trigger red alerts.
+            Sensors with only a minimum (DO, Water Level) have no upper limit.
+        </MudText>
+
+        @* Header row *@
+        <div class="threshold-row" style="border-bottom:2px solid #e2e8f0; padding-bottom:0.5rem;">
+            <div class="threshold-col-header" style="text-align:left;">Sensor</div>
+            <div class="threshold-col-header">⚠️ Warn Min</div>
+            <div class="threshold-col-header">⚠️ Warn Max</div>
+            <div class="threshold-col-header">🔴 Crit Min</div>
+            <div class="threshold-col-header">🔴 Crit Max</div>
+        </div>
+
+        @* pH *@
+        <div class="threshold-row">
+            <div class="threshold-label">pH</div>
+            <MudNumericField @bind-Value="settings.PhWarnMin" Format="F1" Min="0" Max="14" Step="0.1" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.PhWarnMax" Format="F1" Min="0" Max="14" Step="0.1" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.PhMin" Format="F1" Min="0" Max="14" Step="0.1" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.PhMax" Format="F1" Min="0" Max="14" Step="0.1" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+        </div>
+
+        @* Water Temp *@
+        <div class="threshold-row">
+            <div class="threshold-label">Water Temp (°C)</div>
+            <MudNumericField @bind-Value="settings.WaterTempWarnMin" Format="F1" Min="0" Max="50" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.WaterTempWarnMax" Format="F1" Min="0" Max="50" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.WaterTempMin" Format="F1" Min="0" Max="50" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.WaterTempMax" Format="F1" Min="0" Max="50" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+        </div>
+
+        @* Air Temp *@
+        <div class="threshold-row">
+            <div class="threshold-label">Air Temp (°C)</div>
+            <MudNumericField @bind-Value="settings.AirTempWarnMin" Format="F1" Min="0" Max="50" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.AirTempWarnMax" Format="F1" Min="0" Max="50" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.AirTempMin" Format="F1" Min="0" Max="50" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.AirTempMax" Format="F1" Min="0" Max="50" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+        </div>
+
+        @* Humidity *@
+        <div class="threshold-row">
+            <div class="threshold-label">Humidity (%)</div>
+            <MudNumericField @bind-Value="settings.HumidityWarnMin" Format="F0" Min="0" Max="100" Step="1" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.HumidityWarnMax" Format="F0" Min="0" Max="100" Step="1" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.HumidityMin" Format="F0" Min="0" Max="100" Step="1" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.HumidityMax" Format="F0" Min="0" Max="100" Step="1" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+        </div>
+
+        @* TDS *@
+        <div class="threshold-row">
+            <div class="threshold-label">TDS (PPM)</div>
+            <MudNumericField @bind-Value="settings.TdsWarnMin" Format="F0" Min="0" Max="3000" Step="50" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.TdsWarnMax" Format="F0" Min="0" Max="3000" Step="50" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.TdsMin" Format="F0" Min="0" Max="3000" Step="50" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.TdsMax" Format="F0" Min="0" Max="3000" Step="50" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+        </div>
+
+        @* Dissolved Oxygen — min only *@
+        <div class="threshold-row">
+            <div class="threshold-label">Dissolved O₂ (mg/L)</div>
+            <MudNumericField @bind-Value="settings.DoWarnMin" Format="F1" Min="0" Max="20" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <div style="display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:0.8rem;">No max</div>
+            <MudNumericField @bind-Value="settings.DoMin" Format="F1" Min="0" Max="20" Step="0.5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <div style="display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:0.8rem;">No max</div>
+        </div>
+
+        @* Water Level — min only *@
+        <div class="threshold-row">
+            <div class="threshold-label">Water Level (%)</div>
+            <MudNumericField @bind-Value="settings.WaterLevelWarnMin" Format="F0" Min="0" Max="100" Step="5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <div style="display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:0.8rem;">No max</div>
+            <MudNumericField @bind-Value="settings.WaterLevelMin" Format="F0" Min="0" Max="100" Step="5" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <div style="display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:0.8rem;">No max</div>
+        </div>
+
+        @* Light *@
+        <div class="threshold-row">
+            <div class="threshold-label">Light (lux)</div>
+            <MudNumericField @bind-Value="settings.LightWarnMin" Format="F0" Min="0" Max="10000" Step="100" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.LightWarnMax" Format="F0" Min="0" Max="10000" Step="100" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.LightMin" Format="F0" Min="0" Max="10000" Step="100" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+            <MudNumericField @bind-Value="settings.LightMax" Format="F0" Min="0" Max="10000" Step="100" Variant="Variant.Outlined" Margin="Margin.Dense" HideSpinButtons="true" />
+        </div>
+    </div>
+
+    @* ===================== SECTION 3: POLLING RATE ===================== *@
+    <div class="settings-section">
+        <div class="section-title">
+            <MudIcon Icon="@Icons.Material.Filled.Timer" Size="Size.Small" Style="color:#11998e;" />
+            Data Polling Rate
+        </div>
+        <MudText Typo="Typo.body2" Style="color:#6b7280; margin-bottom:1.5rem;">
+            Controls how often a reading is saved to the database.
+        </MudText>
+        <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+            @foreach (var (label, seconds) in pollingOptions)
+            {
+                <MudButton Variant="@(settings.PollingRateSeconds == seconds ? Variant.Filled : Variant.Outlined)"
+                           Color="Color.Success"
+                           Size="Size.Small"
+                           OnClick="() => settings.PollingRateSeconds = seconds">
+                    @label
+                </MudButton>
+            }
+        </div>
+        <MudText Typo="Typo.caption" Style="color:#9ca3af; margin-top:0.75rem; display:block;">
+            Current: save every @PollingRateLabel(settings.PollingRateSeconds)
+            — approx. @ReadingsPerHour(settings.PollingRateSeconds) readings/hour
+        </MudText>
+    </div>
+
+    @* ===================== SECTION 4: DATABASE MAINTENANCE ===================== *@
+    <div class="settings-section">
+        <div class="section-title">
+            <MudIcon Icon="@Icons.Material.Filled.Storage" Size="Size.Small" Style="color:#11998e;" />
+            Database Maintenance
+        </div>
+
+        @* DB path *@
+        <MudText Typo="Typo.subtitle2" Style="font-weight:600; margin-bottom:0.5rem;">Database Location</MudText>
+        <div class="db-path-box">@DatabaseService.DatabasePath</div>
+        <MudText Typo="Typo.caption" Style="color:#9ca3af; margin-top:0.3rem; display:block;">
+            Copy this path to retrieve the database file.
+        </MudText>
+
+        <MudDivider Style="margin: 1.5rem 0;" />
+
+        @* Stats *@
+        <MudText Typo="Typo.subtitle2" Style="font-weight:600; margin-bottom:0.75rem;">Database Stats</MudText>
+        <div style="display:flex; gap:2rem; flex-wrap:wrap; margin-bottom:1.5rem;">
+            <div>
+                <div style="font-size:1.5rem; font-weight:700; color:#11998e;">@readingCount</div>
+                <div style="font-size:0.8rem; color:#6b7280;">Total Readings</div>
+            </div>
+            <div>
+                <div style="font-size:1.5rem; font-weight:700; color:#11998e;">@batchCount</div>
+                <div style="font-size:0.8rem; color:#6b7280;">Batches</div>
+            </div>
+            <div>
+                <div style="font-size:1.5rem; font-weight:700; color:#11998e;">@cropCount</div>
+                <div style="font-size:0.8rem; color:#6b7280;">Total Crops</div>
+            </div>
+        </div>
+
+        <MudDivider Style="margin: 1.5rem 0;" />
+
+        @* Export *@
+        <MudText Typo="Typo.subtitle2" Style="font-weight:600; margin-bottom:0.5rem;">Export Data</MudText>
+        <MudText Typo="Typo.body2" Style="color:#6b7280; margin-bottom:0.75rem;">
+            Download all sensor readings as a CSV file.
+        </MudText>
+        <MudButton Variant="Variant.Outlined"
+                   Color="Color.Success"
+                   StartIcon="@Icons.Material.Filled.Download"
+                   OnClick="ExportCsv"
+                   Disabled="@isExporting">
+            @(isExporting ? "Exporting..." : "Export to CSV")
+        </MudButton>
+        @if (!string.IsNullOrEmpty(exportMessage))
+        {
+            <MudText Typo="Typo.caption" Style="@("color:" + (exportSuccess ? "#10b981" : "#ef4444") + "; margin-left:1rem;")">
+                @exportMessage
+            </MudText>
+        }
+
+        <MudDivider Style="margin: 1.5rem 0;" />
+
+        @* Reset *@
+        <MudText Typo="Typo.subtitle2" Style="font-weight:600; margin-bottom:0.5rem; color:#dc2626;">Danger Zone</MudText>
+        <MudText Typo="Typo.body2" Style="color:#6b7280; margin-bottom:0.75rem;">
+            Permanently deletes all batches, crops, and sensor readings. This cannot be undone.
+        </MudText>
+        <button class="danger-btn" @onclick="ConfirmReset">
+            🗑️ Master Reset — Wipe All Data
+        </button>
+    </div>
+
+    @* ===================== STICKY SAVE BAR ===================== *@
+    <div class="save-bar">
+        @if (saveSuccess)
+        {
+            <MudText Style="color:#10b981; align-self:center; font-weight:500;">
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Style="vertical-align:middle; margin-right:0.3rem;" />
+                Settings saved!
+            </MudText>
+        }
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="ReloadSettings">
+            Discard Changes
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveSettings" StartIcon="@Icons.Material.Filled.Save">
+            Save Settings
+        </MudButton>
+    </div>
+}
+
+@code {
+    private SystemSettings? settings;         // The draft object the UI binds to
+    private SystemSettings? originalSettings; // Keeps track of the DB version
+
+    private bool saveSuccess = false;
+    private bool isExporting = false;
+    private string exportMessage = "";
+    private bool exportSuccess = false;
+    private int readingCount = 0;
+    private int batchCount = 0;
+    private int cropCount = 0;
+
+    // Polling options: label → seconds
+    private readonly (string label, int seconds)[] pollingOptions = new[]
+    {
+        ("5 sec", 5),
+        ("30 sec", 30),
+        ("1 min", 60),
+        ("5 min", 300),
+        ("10 min", 600),
+    };
+
+    // Crop presets
+    private readonly Dictionary<string, Action<SystemSettings>> presets = new()
+    {
+        ["Iceberg Lettuce"] = s =>
+        {
+            s.PhWarnMin = 5.8; s.PhWarnMax = 6.2; s.PhMin = 5.5; s.PhMax = 6.5;
+            s.WaterTempWarnMin = 19; s.WaterTempWarnMax = 23; s.WaterTempMin = 18; s.WaterTempMax = 24;
+            s.TdsWarnMin = 500; s.TdsWarnMax = 700; s.TdsMin = 400; s.TdsMax = 800;
+            s.DoWarnMin = 7; s.DoMin = 6;
+            s.LightWarnMin = 2500; s.LightWarnMax = 3500; s.LightMin = 2000; s.LightMax = 4000;
+        },
+        ["Romaine Lettuce"] = s =>
+        {
+            s.PhWarnMin = 6.0; s.PhWarnMax = 6.5; s.PhMin = 5.8; s.PhMax = 6.8;
+            s.WaterTempWarnMin = 18; s.WaterTempWarnMax = 22; s.WaterTempMin = 16; s.WaterTempMax = 24;
+            s.TdsWarnMin = 560; s.TdsWarnMax = 840; s.TdsMin = 400; s.TdsMax = 1000;
+            s.DoWarnMin = 7; s.DoMin = 6;
+            s.LightWarnMin = 3000; s.LightWarnMax = 4000; s.LightMin = 2500; s.LightMax = 5000;
+        },
+        ["Butterhead Lettuce"] = s =>
+        {
+            s.PhWarnMin = 5.8; s.PhWarnMax = 6.2; s.PhMin = 5.5; s.PhMax = 6.5;
+            s.WaterTempWarnMin = 18; s.WaterTempWarnMax = 22; s.WaterTempMin = 16; s.WaterTempMax = 24;
+            s.TdsWarnMin = 500; s.TdsWarnMax = 700; s.TdsMin = 350; s.TdsMax = 900;
+            s.DoWarnMin = 6.5; s.DoMin = 5.5;
+            s.LightWarnMin = 2000; s.LightWarnMax = 3000; s.LightMin = 1500; s.LightMax = 4000;
+        },
+        ["Looseleaf Lettuce"] = s =>
+        {
+            s.PhWarnMin = 5.5; s.PhWarnMax = 6.0; s.PhMin = 5.0; s.PhMax = 6.5;
+            s.WaterTempWarnMin = 18; s.WaterTempWarnMax = 24; s.WaterTempMin = 15; s.WaterTempMax = 26;
+            s.TdsWarnMin = 400; s.TdsWarnMax = 600; s.TdsMin = 300; s.TdsMax = 800;
+            s.DoWarnMin = 6; s.DoMin = 5;
+            s.LightWarnMin = 2000; s.LightWarnMax = 3500; s.LightMin = 1500; s.LightMax = 4500;
+        },
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadSettings();
+        await LoadStats();
+    }
+
+    private async Task ReloadSettings()
+    {
+        // Load the actual values from DB
+        originalSettings = await Db.GetSettingsAsync();
+
+        // Create a separate DRAFT object for the UI
+        // This prevents "Instant Applying" because the DB doesn't see these changes yet
+        settings = new SystemSettings
+        {
+            Id = originalSettings.Id,
+            PhMin = originalSettings.PhMin,
+            PhMax = originalSettings.PhMax,
+            PhWarnMin = originalSettings.PhWarnMin,
+            PhWarnMax = originalSettings.PhWarnMax,
+            WaterTempMin = originalSettings.WaterTempMin,
+            WaterTempMax = originalSettings.WaterTempMax,
+            WaterTempWarnMin = originalSettings.WaterTempWarnMin,
+            WaterTempWarnMax = originalSettings.WaterTempWarnMax,
+            AirTempMin = originalSettings.AirTempMin,
+            AirTempMax = originalSettings.AirTempMax,
+            AirTempWarnMin = originalSettings.AirTempWarnMin,
+            AirTempWarnMax = originalSettings.AirTempWarnMax,
+            HumidityMin = originalSettings.HumidityMin,
+            HumidityMax = originalSettings.HumidityMax,
+            HumidityWarnMin = originalSettings.HumidityWarnMin,
+            HumidityWarnMax = originalSettings.HumidityWarnMax,
+            TdsMin = originalSettings.TdsMin,
+            TdsMax = originalSettings.TdsMax,
+            TdsWarnMin = originalSettings.TdsWarnMin,
+            TdsWarnMax = originalSettings.TdsWarnMax,
+            DoMin = originalSettings.DoMin,
+            DoWarnMin = originalSettings.DoWarnMin,
+            WaterLevelMin = originalSettings.WaterLevelMin,
+            WaterLevelWarnMin = originalSettings.WaterLevelWarnMin,
+            LightMin = originalSettings.LightMin,
+            LightMax = originalSettings.LightMax,
+            LightWarnMin = originalSettings.LightWarnMin,
+            LightWarnMax = originalSettings.LightWarnMax,
+            PollingRateSeconds = originalSettings.PollingRateSeconds,
+            LastPreset = originalSettings.LastPreset
+        };
+        saveSuccess = false;
+        StateHasChanged();
+    }
+
+    private async Task LoadStats()
+    {
+        readingCount = await Db.GetReadingCountAsync();
+        var batches = await Db.GetAllBatchesAsync();
+        var crops = await Db.GetAllCropsAsync();
+        batchCount = batches.Count;
+        cropCount = crops.Count;
+    }
+
+    private void ApplyPreset(string presetName)
+    {
+        if (settings == null) return;
+        if (presets.TryGetValue(presetName, out var apply))
+        {
+            apply(settings);
+            settings.LastPreset = presetName;
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        if (settings == null) return;
+
+        // This is the ONLY place where data is written to the database
+        await Db.SaveSettingsAsync(settings);
+
+        saveSuccess = true;
+        await LoadStats();
+
+        // Hide "Settings Saved" message after 3 seconds
+        _ = Task.Delay(3000).ContinueWith(_ =>
+        {
+            saveSuccess = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private async Task ExportCsv()
+    {
+        isExporting = true;
+        exportMessage = "";
+        StateHasChanged();
+
+        try
+        {
+            var csv = await Db.ExportToCsvAsync();
+            var fileName = $"demeter_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            var filePath = Path.Combine(FileSystem.CacheDirectory, fileName);
+            await File.WriteAllTextAsync(filePath, csv);
+
+            await Share.RequestAsync(new ShareFileRequest
+            {
+                Title = "Export Sensor Data",
+                File = new ShareFile(filePath)
+            });
+
+            exportSuccess = true;
+            exportMessage = $"Exported {csv.Split('\n').Length - 2} readings.";
+        }
+        catch (Exception ex)
+        {
+            exportSuccess = false;
+            exportMessage = $"Export failed: {ex.Message}";
+        }
+        finally
+        {
+            isExporting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfirmReset()
+    {
+        var result = await DialogService.ShowMessageBox(
+            "⚠️ Master Reset",
+            "This will permanently delete ALL batches, crops, and sensor readings. This cannot be undone.",
+            yesText: "Yes, wipe everything",
+            cancelText: "Cancel");
+
+        if (result == true)
+        {
+            await Db.ResetAsync();
+            await ReloadSettings();
+            await LoadStats();
+        }
+    }
+
+    private string PollingRateLabel(int seconds) => seconds switch
+    {
+        5 => "5 seconds",
+        30 => "30 seconds",
+        60 => "1 minute",
+        300 => "5 minutes",
+        600 => "10 minutes",
+        _ => $"{seconds} seconds"
+    };
+
+    private int ReadingsPerHour(int seconds) => 3600 / seconds;
+}
