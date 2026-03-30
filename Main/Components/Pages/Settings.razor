@@ -116,7 +116,7 @@
         <MudIcon Icon="@Icons.Material.Filled.Settings" Style="vertical-align: middle; margin-right: 0.5rem;" />
         System Settings
     </h3>
-    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Configure thresholds, polling rate, and database management</p>
+    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">Configure alert thresholds and database management</p>
 </div>
 
 @if (settings == null)
@@ -246,33 +246,7 @@ else
         </div>
     </div>
 
-    @* ===================== SECTION 3: POLLING RATE ===================== *@
-    <div class="settings-section">
-        <div class="section-title">
-            <MudIcon Icon="@Icons.Material.Filled.Timer" Size="Size.Small" Style="color:#11998e;" />
-            Data Polling Rate
-        </div>
-        <MudText Typo="Typo.body2" Style="color:#6b7280; margin-bottom:1.5rem;">
-            Controls how often a reading is saved to the database.
-        </MudText>
-        <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
-            @foreach (var (label, seconds) in pollingOptions)
-            {
-                <MudButton Variant="@(settings.PollingRateSeconds == seconds ? Variant.Filled : Variant.Outlined)"
-                           Color="Color.Success"
-                           Size="Size.Small"
-                           OnClick="() => settings.PollingRateSeconds = seconds">
-                    @label
-                </MudButton>
-            }
-        </div>
-        <MudText Typo="Typo.caption" Style="color:#9ca3af; margin-top:0.75rem; display:block;">
-            Current: save every @PollingRateLabel(settings.PollingRateSeconds)
-            — approx. @ReadingsPerHour(settings.PollingRateSeconds) readings/hour
-        </MudText>
-    </div>
-
-    @* ===================== SECTION 4: DATABASE MAINTENANCE ===================== *@
+    @* ===================== SECTION 3: DATABASE MAINTENANCE ===================== *@
     <div class="settings-section">
         <div class="section-title">
             <MudIcon Icon="@Icons.Material.Filled.Storage" Size="Size.Small" Style="color:#11998e;" />
@@ -357,8 +331,8 @@ else
 }
 
 @code {
-    private SystemSettings? settings;         // The draft object the UI binds to
-    private SystemSettings? originalSettings; // Keeps track of the DB version
+    private SystemSettings? settings;
+    private SystemSettings? originalSettings;
 
     private bool saveSuccess = false;
     private bool isExporting = false;
@@ -368,17 +342,6 @@ else
     private int batchCount = 0;
     private int cropCount = 0;
 
-    // Polling options: label → seconds
-    private readonly (string label, int seconds)[] pollingOptions = new[]
-    {
-        ("5 sec", 5),
-        ("30 sec", 30),
-        ("1 min", 60),
-        ("5 min", 300),
-        ("10 min", 600),
-    };
-
-    // Crop presets
     private readonly Dictionary<string, Action<SystemSettings>> presets = new()
     {
         ["Iceberg Lettuce"] = s =>
@@ -423,11 +386,7 @@ else
 
     private async Task ReloadSettings()
     {
-        // Load the actual values from DB
         originalSettings = await Db.GetSettingsAsync();
-
-        // Create a separate DRAFT object for the UI
-        // This prevents "Instant Applying" because the DB doesn't see these changes yet
         settings = new SystemSettings
         {
             Id = originalSettings.Id,
@@ -459,7 +418,6 @@ else
             LightMax = originalSettings.LightMax,
             LightWarnMin = originalSettings.LightWarnMin,
             LightWarnMax = originalSettings.LightWarnMax,
-            PollingRateSeconds = originalSettings.PollingRateSeconds,
             LastPreset = originalSettings.LastPreset
         };
         saveSuccess = false;
@@ -488,14 +446,9 @@ else
     private async Task SaveSettings()
     {
         if (settings == null) return;
-
-        // This is the ONLY place where data is written to the database
         await Db.SaveSettingsAsync(settings);
-
         saveSuccess = true;
         await LoadStats();
-
-        // Hide "Settings Saved" message after 3 seconds
         _ = Task.Delay(3000).ContinueWith(_ =>
         {
             saveSuccess = false;
@@ -552,16 +505,4 @@ else
             await LoadStats();
         }
     }
-
-    private string PollingRateLabel(int seconds) => seconds switch
-    {
-        5 => "5 seconds",
-        30 => "30 seconds",
-        60 => "1 minute",
-        300 => "5 minutes",
-        600 => "10 minutes",
-        _ => $"{seconds} seconds"
-    };
-
-    private int ReadingsPerHour(int seconds) => 3600 / seconds;
 }

@@ -48,7 +48,7 @@ namespace Main.Services
     public class SystemSettings
     {
         [PrimaryKey]
-        public int Id { get; set; } = 1; // singleton row
+        public int Id { get; set; } = 1;
 
         // pH
         public double PhMin { get; set; } = 5.5;
@@ -94,10 +94,7 @@ namespace Main.Services
         public double LightWarnMin { get; set; } = 2500;
         public double LightWarnMax { get; set; } = 3500;
 
-        // Polling rate in seconds (how often to save a reading to DB)
-        public int PollingRateSeconds { get; set; } = 30;
-
         // Preset name last applied
-        public string LastPreset { get; set; } = "Lettuce (General)";
+        public string LastPreset { get; set; } = "Iceberg Lettuce";
     }
 }

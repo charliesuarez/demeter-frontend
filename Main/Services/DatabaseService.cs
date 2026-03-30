@@ -11,25 +11,16 @@ namespace Main.Services
         public static string DatabasePath =>
             Path.Combine(FileSystem.AppDataDirectory, "demeter.db");
 
-        // In-memory cache of settings so pages don't hit DB on every reading
         private SystemSettings? _cachedSettings;
-
-        // Tracks the last time we saved a reading, used to enforce polling rate
-        private DateTime _lastSavedAt = DateTime.MinValue;
 
         public DatabaseService()
         {
             var options = new SQLiteConnectionString(DatabasePath, true);
             _database = new SQLiteAsyncConnection(options);
-
-            // Critical for Windows Desktop to prevent data loss on close
-            _ = _database.ExecuteAsync("PRAGMA journal_mode = WAL;");
-            _ = _database.ExecuteAsync("PRAGMA synchronous = NORMAL;");
         }
 
         public async Task InitializeAsync()
         {
-            // Use WAL mode for reliable writes that persist across restarts
             await _database.ExecuteAsync("PRAGMA journal_mode = WAL;");
             await _database.ExecuteAsync("PRAGMA synchronous = NORMAL;");
 
@@ -38,12 +29,10 @@ namespace Main.Services
             await _database.CreateTableAsync<SensorReading>();
             await _database.CreateTableAsync<SystemSettings>();
 
-            // Seed default settings if not present
             var existing = await _database.Table<SystemSettings>().FirstOrDefaultAsync();
             if (existing == null)
                 await _database.InsertAsync(new SystemSettings());
 
-            // Run 90-day cleanup on startup
             await CleanupOldReadingsAsync();
         }
 
@@ -128,31 +117,12 @@ namespace Main.Services
         // =====================
 
         /// <summary>
-        /// Saves a reading only if enough time has passed since the last save,
-        /// based on the configured polling rate in SystemSettings.
+        /// Saves every reading unconditionally.
+        /// The ESP firmware controls the transmission rate.
         /// </summary>
         public async Task SaveReadingAsync(SensorReading reading)
         {
-            var settings = await GetSettingsAsync();
-            var elapsed = (DateTime.Now - _lastSavedAt).TotalSeconds;
-
-            // Add a check to always save if the count is 0
-            var currentCount = await GetReadingCountAsync();
-
-            if (currentCount == 0 || elapsed >= settings.PollingRateSeconds)
-            {
-                await _database.InsertAsync(reading);
-                _lastSavedAt = DateTime.Now;
-            }
-        }
-
-        /// <summary>
-        /// Force-saves regardless of polling rate. Used internally for testing.
-        /// </summary>
-        public async Task ForceReadingAsync(SensorReading reading)
-        {
             await _database.InsertAsync(reading);
-            _lastSavedAt = DateTime.Now;
         }
 
         public async Task<List<SensorReading>> GetReadingsByBatchAsync(int batchId)
@@ -254,7 +224,6 @@ namespace Main.Services
             else
                 await _database.UpdateAsync(settings);
 
-            // Update cache AFTER the DB write succeeds
             _cachedSettings = settings;
         }
 
@@ -264,28 +233,21 @@ namespace Main.Services
 
         /// <summary>
         /// Deletes all sensor readings older than 90 days.
-        /// Uses ticks comparison since SQLite-NET stores DateTime as ticks (long).
+        /// Uses ticks since SQLite-NET stores DateTime as ticks (long).
         /// </summary>
         public async Task CleanupOldReadingsAsync()
         {
             var cutoffTicks = DateTime.Now.AddDays(-90).Ticks;
-            // SQLite-NET stores DateTime as ticks, so compare as long integer
             await _database.ExecuteAsync(
                 "DELETE FROM SensorReadings WHERE Timestamp < ?",
                 cutoffTicks);
         }
 
-        /// <summary>
-        /// Returns total number of sensor readings stored.
-        /// </summary>
         public async Task<int> GetReadingCountAsync()
         {
             return await _database.Table<SensorReading>().CountAsync();
         }
 
-        /// <summary>
-        /// Exports all sensor readings as a CSV string.
-        /// </summary>
         public async Task<string> ExportToCsvAsync()
         {
             var readings = await _database.Table<SensorReading>()
@@ -306,9 +268,6 @@ namespace Main.Services
             return sb.ToString();
         }
 
-        /// <summary>
-        /// Full reset — drops and recreates all tables.
-        /// </summary>
         public async Task ResetAsync()
         {
             await _database.DropTableAsync<SensorReading>();
@@ -316,7 +275,6 @@ namespace Main.Services
             await _database.DropTableAsync<Batch>();
             await _database.DropTableAsync<SystemSettings>();
             _cachedSettings = null;
-            _lastSavedAt = DateTime.MinValue;
             await InitializeAsync();
         }
     }

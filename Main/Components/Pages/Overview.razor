@@ -181,13 +181,6 @@
     </MudStack>
 </div>
 
-@*
-<MudButton OnClick="SimulateReading" Color="Color.Warning" Variant="Variant.Outlined" Class="mb-4">
-    Simulate Bad Reading (Test)
-</MudButton>
-@*
-
-
 @* --- STAT CARDS --- *@
 @{
     var alertIconColor = _alerts.Any(a => a.IsCritical) ? "#ef4444" : _alerts.Any() ? "#f59e0b" : "#11998e";
@@ -495,10 +488,6 @@
     private List<LiveAlert> _alerts = new();
     private HashSet<string> _dismissedSensors = new();
 
-    private bool _waterPumpOn;
-    private bool _airPumpOn;
-    private int _doseDuration = 1000;
-
     private int _activeCropCount = 0;
     private string _daysUntilHarvest = "--";
 
@@ -559,24 +548,19 @@
         }
     }
 
-    private void OnSensorDataReceived(SensorData data)
+    // Every BLE reading is saved directly here with a proper await —
+    // no fire-and-forget, no background thread, no silent failures.
+    private async void OnSensorDataReceived(SensorData data)
     {
         _sensorData = data;
         _dismissedSensors.Clear();
         BuildAlerts(data);
-        SaveReadingToDatabase(data);
-        InvokeAsync(StateHasChanged);
-    }
 
-    private void SaveReadingToDatabase(SensorData data)
-    {
-        _ = Task.Run(async () =>
+        try
         {
-            try
+            var activeBatch = await Db.GetActiveBatchAsync();
+            if (activeBatch != null)
             {
-                var activeBatch = await Db.GetActiveBatchAsync();
-                if (activeBatch == null) return;
-
                 var reading = new SensorReading
                 {
                     BatchId = activeBatch.Id,
@@ -594,13 +578,14 @@
                 };
 
                 await Db.SaveReadingAsync(reading);
-                Console.WriteLine("Reading saved successfully!");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Database Save Error: {ex.Message}");
-            }
-        });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"DB save error: {ex.Message}");
+        }
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private void OnConnectionChanged(bool connected)
@@ -767,22 +752,6 @@
 
     private async Task DisconnectAsync() => await Bluetooth.DisconnectAsync();
 
-    private async Task OnWaterPumpToggle(bool value)
-    {
-        if (await Bluetooth.SetWaterPumpAsync(value)) _waterPumpOn = value;
-    }
-
-    private async Task OnAirPumpToggle(bool value)
-    {
-        if (await Bluetooth.SetAirPumpAsync(value)) _airPumpOn = value;
-    }
-
-    private async Task DoseNutrientsAsync()
-    {
-        if (await Bluetooth.DoseNutrientsAsync(_doseDuration))
-            _alerts.Add(new LiveAlert { Sensor = "system", Message = $"Nutrient dosing started ({_doseDuration}ms)", IsCritical = false, Timestamp = DateTime.Now });
-    }
-
     private string FormatValue(double? value, string format, string suffix = "")
         => value.HasValue ? $"{value.Value.ToString(format)}{suffix}" : "--";
 
@@ -800,25 +769,5 @@
         Bluetooth.ConnectionChanged -= OnConnectionChanged;
         Bluetooth.DeviceDiscovered -= OnDeviceDiscovered;
         Bluetooth.ErrorOccurred -= OnError;
-    }
-
-    private void SimulateReading()
-    {
-        var testData = new SensorData
-        {
-            Ph = 6.0,
-            WaterTemp = 23.8,
-            WaterLevel = 25,
-            DissolvedOxygen = 5.5,
-            Light = 3100,
-            Tds = 480,
-            AirTemp = 21,
-            Humidity = 60
-        };
-
-        _sensorData = testData;
-        _dismissedSensors.Clear();
-        BuildAlerts(testData);
-        StateHasChanged();
     }
 }
