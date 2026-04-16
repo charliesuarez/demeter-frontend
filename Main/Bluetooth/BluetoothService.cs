@@ -10,8 +10,8 @@ namespace Main.Bluetooth;
 
 public class BluetoothService : IBluetoothService
 {
-    private static readonly Guid ServiceUuid = Guid.Parse("000000ff-0000-1000-8000-00805f9b34fb");
-    private static readonly Guid DataCharUuid = Guid.Parse("0000ff01-0000-1000-8000-00805f9b34fb");
+    private static readonly Guid ServiceUuid     = Guid.Parse("000000ff-0000-1000-8000-00805f9b34fb");
+    private static readonly Guid DataCharUuid    = Guid.Parse("0000ff01-0000-1000-8000-00805f9b34fb");
     private static readonly Guid CommandCharUuid = Guid.Parse("0000ff02-0000-1000-8000-00805f9b34fb");
 
     private readonly IBluetoothLE _ble;
@@ -39,9 +39,9 @@ public class BluetoothService : IBluetoothService
 
     public Task InitializeAsync()
     {
-        _adapter.DeviceDiscovered += OnDeviceDiscovered;
+        _adapter.DeviceDiscovered   += OnDeviceDiscovered;
         _adapter.DeviceDisconnected += OnDeviceDisconnected;
-        _adapter.DeviceConnected += OnDeviceConnected;
+        _adapter.DeviceConnected    += OnDeviceConnected;
         return Task.CompletedTask;
     }
 
@@ -123,7 +123,10 @@ public class BluetoothService : IBluetoothService
                     WaterTemp = reading.WaterTemp,
                     AirTemp = reading.AirTemp,
                     Humidity = reading.Humidity,
-                    Tds = reading.Tds
+                    Tds = reading.Tds,
+                    WaterLevel = reading.WaterLevel,
+                    Light = reading.LightIntensity,
+                    DissolvedOxygen = reading.DissolvedOxygen
                 };
                 SensorDataReceived?.Invoke(data);
             }
