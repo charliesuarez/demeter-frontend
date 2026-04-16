@@ -497,8 +497,9 @@
         @* ===================== TAB 4: CROP STATS ===================== *@
         <MudTabPanel Text="Crop Stats" Icon="@Icons.Material.Filled.PieChart">
             <MudGrid Spacing="4" Class="pa-2">
-                <MudItem xs="12" md="6">
-                    <MudCard Elevation="4" Class="mb-4">
+                @* PIE CHART - LEFT SIDE *@
+                <MudItem xs="12" md="5">
+                    <MudCard Elevation="4" Style="height: 100%;">
                         <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
                             <MudText Typo="Typo.h6">Crop Types Grown (All Batches)</MudText>
                         </MudCardHeader>
@@ -513,41 +514,46 @@
                             }
                         </MudCardContent>
                     </MudCard>
+                </MudItem>
 
-                    <MudCard Elevation="4">
+                @* CROP HISTORY - RIGHT SIDE *@
+                <MudItem xs="12" md="7">
+                    <MudCard Elevation="4" Style="height: 100%;">
                         <MudCardHeader Style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
                             <MudText Typo="Typo.h6">Crop History</MudText>
                         </MudCardHeader>
                         <MudCardContent Style="padding: 0;">
                             @if (allBatches.Any())
                             {
-                                <table class="history-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Batch</th>
-                                            <th>Crops</th>
-                                            <th>Started</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var batch in allBatches.OrderByDescending(b => b.StartDate))
-                                        {
-                                            var batchCrops = allCrops.Where(c => c.BatchId == batch.Id).ToList();
+                                <div style="overflow-x: auto;">
+                                    <table class="history-table">
+                                        <thead>
                                             <tr>
-                                                <td><b>Batch @batch.Id</b></td>
-                                                <td>
-                                                    @foreach (var crop in batchCrops)
-                                                    {
-                                                        <span class="crop-badge" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">@crop.Type</span>
-                                                    }
-                                                </td>
-                                                <td>@batch.StartDate.ToShortDateString()</td>
-                                                <td>@(batch.EndDate.HasValue ? "✅" : "🌱")</td>
+                                                <th>Batch</th>
+                                                <th>Crops</th>
+                                                <th>Started</th>
+                                                <th>Status</th>
                                             </tr>
-                                        }
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var batch in allBatches.OrderByDescending(b => b.StartDate))
+                                            {
+                                                var batchCrops = allCrops.Where(c => c.BatchId == batch.Id).ToList();
+                                                <tr>
+                                                    <td><b>Batch @batch.Id</b></td>
+                                                    <td>
+                                                        @foreach (var crop in batchCrops)
+                                                        {
+                                                            <span class="crop-badge" style="font-size: 0.75rem; padding: 0.2rem 0.6rem;">@crop.Type</span>
+                                                        }
+                                                    </td>
+                                                    <td>@batch.StartDate.ToShortDateString()</td>
+                                                    <td>@(batch.EndDate.HasValue ? "✅" : "🌱")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
                             }
                         </MudCardContent>
                     </MudCard>
